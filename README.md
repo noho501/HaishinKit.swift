@@ -36,7 +36,7 @@ Sponsor: [$50 per month](https://github.com/sponsors/shogo4405): Technical suppo
 |2.1.0+|16.4+|6.0+|
 
 ### OS
-|iOS|tvOS|macOS|macOS|visionOS|watchOS|
+|iOS|tvOS|Mac Catalyst|macOS|visionOS|watchOS|
 |:-:|:-:|:-:|:-:|:-:|:-:|
 |15.0+|15.0+|15.0+|12.0+|1.0+|-|
 
