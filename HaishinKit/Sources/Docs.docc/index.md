@@ -48,6 +48,7 @@ Task {
   await mixer.addOutput(stream)
   await mixer.startRunning()
 }
+```
 
 ### Session API
 Provides a unified API for implementing clients with RTMP and SRT. Retry handling is also performed internally by the API.
