@@ -5,25 +5,19 @@ import VideoToolbox
 import UIKit
 #endif
 
-// MARK: -
-/**
- * The VideoCodec class provides methods for encode or decode for video.
- */
 final class VideoCodec {
     static let frameInterval: Double = 0.0
 
-    /// Specifies the settings for a VideoCodec.
     var settings: VideoCodecSettings = .default {
         didSet {
             let invalidateSession = settings.invalidateSession(oldValue)
             if invalidateSession {
-                self.isInvalidateSession = invalidateSession
+                self.invalidateSession = invalidateSession
             } else {
                 settings.apply(self, rhs: oldValue)
             }
         }
     }
-    var needsSync = true
     var passthrough = true
     var outputStream: AsyncStream<CMSampleBuffer> {
         AsyncStream { continuation in
@@ -34,7 +28,7 @@ final class VideoCodec {
     var expectedFrameRate = MediaMixer.defaultFrameRate
     private var startedAt: CMTime = .zero
     private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
-    private var isInvalidateSession = true
+    private var invalidateSession = true
     private var presentationTimeStamp: CMTime = .zero
     private(set) var isRunning = false
     private(set) var inputFormat: CMFormatDescription? {
@@ -42,14 +36,14 @@ final class VideoCodec {
             guard inputFormat != oldValue else {
                 return
             }
-            isInvalidateSession = true
+            invalidateSession = true
             outputFormat = nil
         }
     }
     private(set) var session: (any VTSessionConvertible)? {
         didSet {
             oldValue?.invalidate()
-            isInvalidateSession = false
+            invalidateSession = false
         }
     }
     private(set) var outputFormat: CMFormatDescription?
@@ -60,7 +54,7 @@ final class VideoCodec {
         }
         do {
             inputFormat = sampleBuffer.formatDescription
-            if isInvalidateSession {
+            if invalidateSession {
                 if sampleBuffer.formatDescription?.isCompressed == true {
                     session = try VTSessionMode.decompression.makeSession(self)
                 } else {
@@ -78,7 +72,7 @@ final class VideoCodec {
                 }
             }
         } catch {
-            logger.error(error)
+            logger.warn(error)
         }
     }
 
@@ -115,7 +109,7 @@ final class VideoCodec {
     #if os(iOS) || os(tvOS) || os(visionOS)
     @objc
     private func applicationWillEnterForeground(_ notification: Notification) {
-        isInvalidateSession = true
+        invalidateSession = true
     }
 
     @objc
@@ -128,7 +122,7 @@ final class VideoCodec {
         }
         switch type {
         case .ended:
-            isInvalidateSession = true
+            invalidateSession = true
         default:
             break
         }
@@ -166,8 +160,7 @@ extension VideoCodec: Runner {
         }
         isRunning = false
         session = nil
-        isInvalidateSession = true
-        needsSync = true
+        invalidateSession = true
         inputFormat = nil
         outputFormat = nil
         presentationTimeStamp = .zero
