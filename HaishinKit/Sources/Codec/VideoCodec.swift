@@ -69,6 +69,7 @@ final class VideoCodec {
             } else {
                 if useFrame(sampleBuffer.presentationTimeStamp) {
                     try session.convert(sampleBuffer, continuation: continuation)
+                    presentationTimeStamp = sampleBuffer.presentationTimeStamp
                 }
             }
         } catch {
