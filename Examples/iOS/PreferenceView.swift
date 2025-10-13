@@ -25,7 +25,7 @@ struct PreferenceView: View {
             Section {
                 Picker("Format", selection: $model.audioFormat) {
                     ForEach(AudioCodecSettings.Format.allCases, id: \.self) { format in
-                        Text("\(format)").tag(format)
+                        Text(String(describing: format)).tag(format)
                     }
                 }
             } header: {
@@ -46,7 +46,7 @@ struct PreferenceView: View {
             Section {
                 Picker("View Type", selection: $model.viewType) {
                     ForEach(ViewType.allCases, id: \.self) { view in
-                        Text("\(view)").tag(view)
+                        Text(String(describing: view)).tag(view)
                     }
                 }
             } header: {
