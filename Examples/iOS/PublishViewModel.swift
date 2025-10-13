@@ -194,6 +194,11 @@ final class PublishViewModel: ObservableObject {
             guard let videoScreenObject else {
                 return
             }
+            if await preference.isGPURendererEnabled {
+                await mixer.screen.isGPURendererEnabled = true
+            } else {
+                await mixer.screen.isGPURendererEnabled = false
+            }
             videoScreenObject.cornerRadius = 16.0
             videoScreenObject.track = 1
             videoScreenObject.horizontalAlignment = .right

@@ -10,15 +10,18 @@ public protocol ScreenRenderer: AnyObject {
     /// Specifies the backgroundColor for output video.
     var backgroundColor: CGColor { get set }
     /// The current screen bounds.
-    var bounds: CGRect { get }
+    var bounds: CGRect { get set }
     /// The current presentationTimeStamp.
-    var presentationTimeStamp: CMTime { get }
+    var presentationTimeStamp: CMTime { get set }
     /// The current session synchronization clock.
     var synchronizationClock: CMClock? { get set }
     /// Layouts a screen object.
     func layout(_ screenObject: ScreenObject)
+
     /// Draws a sceen object.
     func draw(_ screenObject: ScreenObject)
     /// Sets up the render target.
     func setTarget(_ pixelBuffer: CVPixelBuffer?)
+    /// Render a screen to buffer.
+    func render()
 }

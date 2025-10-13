@@ -43,6 +43,13 @@ public final class ImageScreenObject: ScreenObject {
         return cgImage?.cropping(to: .init(origin: .init(x: x, y: y), size: intersection.size))
     }
 
+    override public func makeImage(_ renderer: some ScreenRenderer) -> CIImage? {
+        guard let image: CGImage = makeImage(renderer) else {
+            return nil
+        }
+        return CIImage(cgImage: image)
+    }
+
     override public func makeBounds(_ size: CGSize) -> CGRect {
         guard let cgImage else {
             return super.makeBounds(size)
