@@ -59,14 +59,26 @@ struct PublishView: View {
                                 Text(source.description).tag(source)
                             }
                         }
+                        .frame(width: 200)
                         .background(Color.black.opacity(0.2))
                         .cornerRadius(16)
                         .padding(16)
                     }
                     Spacer()
-                    Button(action: { Task {
+                    Button(action: {
+                        model.toggleRecording()
+                    }, label: {
+                        Image(systemName: model.isRecording ?
+                                "recordingtape.circle.fill" :
+                                "recordingtape.circle")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundColor(.white)
+                            .frame(width: 30, height: 30)
+                    })
+                    Button(action: {
                         model.flipCamera()
-                    }}, label: {
+                    }, label: {
                         Image(systemName:
                                 "arrow.trianglehead.2.clockwise.rotate.90.camera")
                             .resizable()
@@ -74,9 +86,9 @@ struct PublishView: View {
                             .foregroundColor(.white)
                             .frame(width: 30, height: 30)
                     })
-                    Button(action: { Task {
+                    Button(action: {
                         model.toggleTorch()
-                    }}, label: {
+                    }, label: {
                         Image(systemName: model.isTorchEnabled ?
                                 "flashlight.on.circle.fill" :
                                 "flashlight.off.circle.fill")
