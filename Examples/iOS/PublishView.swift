@@ -173,7 +173,7 @@ struct PublishView: View {
         }.alert(isPresented: $model.isShowError) {
             Alert(
                 title: Text("Error"),
-                message: Text(model.error?.localizedDescription ?? ""),
+                message: Text(String(describing: model.error)),
                 dismissButton: .default(Text("OK"))
             )
         }

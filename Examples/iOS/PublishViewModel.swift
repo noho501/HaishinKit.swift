@@ -8,7 +8,13 @@ import SwiftUI
 final class PublishViewModel: ObservableObject {
     @Published var currentFPS: FPS = .fps30
     @Published var visualEffectItem: VideoEffectItem = .none
-    @Published private(set) var error: Error?
+    @Published private(set) var error: Error? {
+        didSet {
+            if error != nil {
+                isShowError = true
+            }
+        }
+    }
     @Published var isShowError = false
     @Published private(set) var isTorchEnabled = false
     @Published private(set) var readyState: SessionReadyState = .closed
@@ -52,7 +58,6 @@ final class PublishViewModel: ObservableObject {
                 }
             } catch {
                 self.error = error
-                self.isShowError = true
                 logger.error(error)
             }
         }
@@ -145,7 +150,6 @@ final class PublishViewModel: ObservableObject {
             })
         } catch {
             self.error = error
-            isShowError = true
         }
         do {
             if let session {
@@ -153,7 +157,6 @@ final class PublishViewModel: ObservableObject {
             }
         } catch {
             self.error = error
-            isShowError = true
         }
         do {
             if let session {
@@ -161,7 +164,6 @@ final class PublishViewModel: ObservableObject {
             }
         } catch {
             self.error = error
-            isShowError = true
         }
     }
 
