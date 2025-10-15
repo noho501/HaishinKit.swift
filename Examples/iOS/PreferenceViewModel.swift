@@ -26,6 +26,7 @@ final class PreferenceViewModel: ObservableObject {
 
     // MARK: - Others
     @Published var viewType: ViewType = .metal
+    var isGPURendererEnabled: Bool = true
 
     init() {
         if #available(iOS 16.0, *) {

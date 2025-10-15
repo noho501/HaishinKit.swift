@@ -89,4 +89,11 @@ public final class TextScreenObject: ScreenObject {
         CTFrameDraw(frame, context)
         return context.makeImage()
     }
+
+    override public func makeImage(_ renderer: some ScreenRenderer) -> CIImage? {
+        guard let image: CGImage = makeImage(renderer) else {
+            return nil
+        }
+        return CIImage(cgImage: image)
+    }
 }

@@ -20,7 +20,7 @@ public final class Screen: ScreenObjectContainerConvertible {
     /// The default screen size.
     public static let size = CGSize(width: 1280, height: 720)
 
-    private static let lockFrags = CVPixelBufferLockFlags(rawValue: 0)
+    private static let lockFlags = CVPixelBufferLockFlags(rawValue: 0)
     private static let preferredTimescale: CMTimeScale = 1000000000
 
     /// The total of child counts.
@@ -39,6 +39,21 @@ public final class Screen: ScreenObjectContainerConvertible {
             }
             renderer.bounds = .init(origin: .zero, size: size)
             CVPixelBufferPoolCreate(nil, nil, attributes as CFDictionary?, &pixelBufferPool)
+        }
+    }
+
+    /// Specifies the gpu rendering enabled.
+    @available(*, deprecated)
+    public var isGPURendererEnabled = false {
+        didSet {
+            guard isGPURendererEnabled != oldValue else {
+                return
+            }
+            if isGPURendererEnabled {
+                renderer = ScreenRendererByGPU()
+            } else {
+                renderer = ScreenRendererByCPU()
+            }
         }
     }
 
@@ -63,6 +78,7 @@ public final class Screen: ScreenObjectContainerConvertible {
         }
     }
     #endif
+
     var synchronizationClock: CMClock? {
         get {
             return renderer.synchronizationClock
@@ -71,7 +87,7 @@ public final class Screen: ScreenObjectContainerConvertible {
             renderer.synchronizationClock = newValue
         }
     }
-    private(set) var renderer = ScreenRendererByCPU()
+    private(set) var renderer: (any ScreenRenderer) = ScreenRendererByCPU()
     private(set) var targetTimestamp: TimeInterval = 0.0
     private(set) var videoTrackScreenObject = VideoTrackScreenObject()
     private var videoCaptureLatency: TimeInterval = 0.0
@@ -175,9 +191,9 @@ public final class Screen: ScreenObjectContainerConvertible {
     }
 
     func render(_ sampleBuffer: CMSampleBuffer) -> CMSampleBuffer {
-        try? sampleBuffer.imageBuffer?.lockBaseAddress(Self.lockFrags)
+        try? sampleBuffer.imageBuffer?.lockBaseAddress(Self.lockFlags)
         defer {
-            try? sampleBuffer.imageBuffer?.unlockBaseAddress(Self.lockFrags)
+            try? sampleBuffer.imageBuffer?.unlockBaseAddress(Self.lockFlags)
         }
         renderer.presentationTimeStamp = sampleBuffer.presentationTimeStamp
         renderer.setTarget(sampleBuffer.imageBuffer)
@@ -187,6 +203,7 @@ public final class Screen: ScreenObjectContainerConvertible {
         delegate?.screen(self, willLayout: sampleBuffer.presentationTimeStamp)
         root.layout(renderer)
         root.draw(renderer)
+        renderer.render()
         return sampleBuffer
     }
 

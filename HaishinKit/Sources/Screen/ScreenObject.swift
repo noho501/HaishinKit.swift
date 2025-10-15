@@ -93,7 +93,13 @@ open class ScreenObject {
     }
 
     /// Makes cgImage for offscreen image.
+    @available(*, deprecated, message: "It will be removed in the next major update. Please migrate to using CIImage instead.")
     open func makeImage(_ renderer: some ScreenRenderer) -> CGImage? {
+        return nil
+    }
+
+    /// Makes ciImage for offscreen image.
+    open func makeImage(_ renderer: some ScreenRenderer) -> CIImage? {
         return nil
     }
 

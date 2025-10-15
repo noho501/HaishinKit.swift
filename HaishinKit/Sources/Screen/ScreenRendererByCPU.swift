@@ -112,7 +112,7 @@ final class ScreenRendererByCPU: ScreenRenderer {
 
     func layout(_ screenObject: ScreenObject) {
         autoreleasepool {
-            guard let image = screenObject.makeImage(self) else {
+            guard let image: CGImage = screenObject.makeImage(self) else {
                 return
             }
             do {
@@ -172,5 +172,8 @@ final class ScreenRendererByCPU: ScreenRenderer {
         default:
             break
         }
+    }
+
+    func render() {
     }
 }
