@@ -88,7 +88,7 @@ public final class VideoTrackScreenObject: ScreenObject, ChromaKeyProcessable {
         }
         frameTracker.update(sampleBuffer.presentationTimeStamp)
         // Resizing before applying the filter for performance optimization.
-        var image = CIImage(cvPixelBuffer: pixelBuffer).transformed(by: videoGravity.scale(
+        var image = CIImage(cvPixelBuffer: pixelBuffer, options: renderer.imageOptions).transformed(by: videoGravity.scale(
             bounds.size,
             image: pixelBuffer.size
         ))

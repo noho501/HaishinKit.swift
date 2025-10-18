@@ -12,6 +12,8 @@ public final class VideoDeviceUnit: DeviceUnit {
     public enum Error: Swift.Error {
         /// The frameRate isn’t supported.
         case unsupportedFrameRate
+        /// The dynamic range mode isn't supported.
+        case unsupportedDynamicRangeMode(_ mode: DynamicRangeMode)
     }
 
     /// The output type that this capture video data output..
@@ -41,13 +43,6 @@ public final class VideoDeviceUnit: DeviceUnit {
                 return
             }
             output.alwaysDiscardsLateVideoFrames = true
-            #if os(iOS) || os(macOS) || os(tvOS)
-            if output.availableVideoPixelFormatTypes.contains(colorFormat) {
-                output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: NSNumber(value: colorFormat)]
-            } else {
-                logger.warn("device doesn't support this color format ", colorFormat, ".")
-            }
-            #endif
         }
     }
     /// The connection from a capture input to a capture output.
@@ -86,6 +81,7 @@ public final class VideoDeviceUnit: DeviceUnit {
     }
     #endif
 
+    private var dynamicRangeMode: DynamicRangeMode = .sdr
     private var dataOutput: VideoCaptureUnitDataOutput?
 
     init(_ track: UInt8, device: AVCaptureDevice) throws {
@@ -135,6 +131,23 @@ public final class VideoDeviceUnit: DeviceUnit {
             }
         }
         self.frameRate = frameRate
+    }
+
+    func setDynamicRangeMode(_ dynamicRangeMode: DynamicRangeMode) throws {
+        guard let device, self.dynamicRangeMode != dynamicRangeMode else {
+            return
+        }
+        try device.lockForConfiguration()
+        defer {
+            device.unlockForConfiguration()
+        }
+        let activeFormat = device.activeFormat
+        if let format = device.formats.filter({ $0.formatDescription.dimensions.size == activeFormat.formatDescription.dimensions.size }).first(where: { $0.formatDescription.mediaSubType.rawValue == dynamicRangeMode.videoFormat }) {
+            device.activeFormat = format
+            self.dynamicRangeMode = dynamicRangeMode
+        } else {
+            throw Error.unsupportedDynamicRangeMode(dynamicRangeMode)
+        }
     }
 
     #if os(iOS) || os(tvOS) || os(macOS)

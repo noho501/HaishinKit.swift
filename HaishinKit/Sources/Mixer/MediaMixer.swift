@@ -49,6 +49,9 @@ public final actor MediaMixer {
     /// The capture session mode.
     public let captureSessionMode: CaptureSessionMode
 
+    /// The dynamic range mode.
+    public private(set) var dynamicRangeMode: DynamicRangeMode = .sdr
+
     #if os(iOS) || os(tvOS)
     /// The AVCaptureMultiCamSession enabled.
     @available(tvOS 17.0, *)
@@ -275,6 +278,20 @@ public final actor MediaMixer {
                 displayLink.preferredFramesPerSecond = Int(frameRate)
             }
         }
+    }
+
+    /// Sets the dynamic range mode.
+    ///
+    /// Warnings: It takes some time for changes to be applied to the camera device, so it’s better not to modify it dynamically during a live stream.
+    public func setDynamicRangeMode(_ dynamicRangeMode: DynamicRangeMode) throws {
+        guard self.dynamicRangeMode != dynamicRangeMode else {
+            return
+        }
+        Task { @ScreenActor in
+            screen.dynamicRangeMode = dynamicRangeMode
+        }
+        videoIO.dynamicRangeMode = dynamicRangeMode
+        self.dynamicRangeMode = dynamicRangeMode
     }
 
     /// Sets the audio mixer settings.

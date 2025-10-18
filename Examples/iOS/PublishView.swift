@@ -63,7 +63,7 @@ struct PublishView: View {
                 .frame(height: 300)
                 .padding(32)
             }
-            VStack(alignment: .trailing) {
+            VStack {
                 HStack(spacing: 16) {
                     if !model.audioSources.isEmpty {
                         Picker("AudioSource", selection: $model.audioSource) {
@@ -120,21 +120,24 @@ struct PublishView: View {
                             .foregroundColor(.white)
                             .frame(width: 30, height: 30)
                     })
-                }.padding(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 16.0))
-                Picker("FPS", selection: $model.currentFPS) {
-                    ForEach(FPS.allCases) {
-                        Text($0.rawValue).tag($0)
+                }
+                .frame(height: 50)
+                HStack {
+                    Spacer()
+                    Toggle(isOn: $model.isHDREnabled) {
+                        Text("HDR")
+                    }.frame(width: 120)
+                    Picker("FPS", selection: $model.currentFPS) {
+                        ForEach(FPS.allCases) {
+                            Text($0.rawValue).tag($0)
+                        }
                     }
-                }
-                .onChange(of: model.currentFPS) { tag in
-                    model.setFrameRate(tag.frameRate)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 150)
-                .padding()
-                Spacer()
-            }
-            VStack {
+                    .onChange(of: model.currentFPS) { tag in
+                        model.setFrameRate(tag.frameRate)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 150)
+                }.frame(height: 80)
                 Spacer()
                 TabView(selection: $model.visualEffectItem) {
                     ForEach(VideoEffectItem.allCases) {
@@ -142,29 +145,25 @@ struct PublishView: View {
                     }
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-                .frame(height: 120)
-                .padding(.bottom, 32)
+                .frame(height: 100)
                 .onChange(of: model.visualEffectItem) { tag in
                     model.setVisualEffet(tag)
                 }
-                Slider(
-                    value: $model.videoBitRates,
-                    in: 100...4000,
-                    step: 100
-                ) {
-                    Text("Video BitRate(kbp)")
-                } minimumValueLabel: {
-                    Text("100")
-                } maximumValueLabel: {
-                    Text("4,000")
-                }
-                .frame(width: 300)
-                .padding(32)
-                Text("\(Int(model.videoBitRates))/kbps")
-            }
-            VStack {
-                Spacer()
                 HStack {
+                    Slider(
+                        value: $model.videoBitRates,
+                        in: 100...4000,
+                        step: 100
+                    ) {
+                        Text("Video BitRate(kbp)")
+                    } minimumValueLabel: {
+                        Text("100")
+                    } maximumValueLabel: {
+                        Text("4,000")
+                    }
+                    .padding(.leading, 32)
+                    .frame(maxWidth: .infinity)
+                    Text("\(Int(model.videoBitRates))/kbps")
                     Spacer()
                     switch model.readyState {
                     case .connecting:
@@ -194,9 +193,9 @@ struct PublishView: View {
                         .frame(width: 60, height: 60)
                         .background(Color.blue)
                         .cornerRadius(30.0)
-                        .padding(EdgeInsets(top: 0, leading: 0, bottom: 16.0, trailing: 16.0))
+                        .padding(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 16.0))
                     }
-                }
+                }.frame(maxWidth: .infinity)
             }
         }
         .onAppear {
