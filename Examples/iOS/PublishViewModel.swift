@@ -16,6 +16,7 @@ final class PublishViewModel: ObservableObject {
         }
     }
     @Published var isShowError = false
+    @Published private(set) var isAudioMuted = false
     @Published private(set) var isTorchEnabled = false
     @Published private(set) var readyState: SessionReadyState = .closed
     @Published var audioSource: AudioSource = .empty {
@@ -123,6 +124,26 @@ final class PublishViewModel: ObservableObject {
                     }
                     break
                 }
+            }
+        }
+    }
+
+    func toggleAudioMuted() {
+        Task {
+            if isAudioMuted {
+                var settings = await mixer.audioMixerSettings
+                var track = settings.tracks[0] ?? .init()
+                track.isMuted = false
+                settings.tracks[0] = track
+                await mixer.setAudioMixerSettings(settings)
+                isAudioMuted = false
+            } else {
+                var settings = await mixer.audioMixerSettings
+                var track = settings.tracks[0] ?? .init()
+                track.isMuted = true
+                settings.tracks[0] = track
+                await mixer.setAudioMixerSettings(settings)
+                isAudioMuted = true
             }
         }
     }
