@@ -77,6 +77,17 @@ struct PublishView: View {
                             .frame(width: 30, height: 30)
                     })
                     Button(action: {
+                        model.toggleAudioMuted()
+                    }, label: {
+                        Image(systemName: model.isAudioMuted ?
+                                "microphone.slash.circle" :
+                                "microphone.circle")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundColor(.white)
+                            .frame(width: 30, height: 30)
+                    })
+                    Button(action: {
                         model.flipCamera()
                     }, label: {
                         Image(systemName:
