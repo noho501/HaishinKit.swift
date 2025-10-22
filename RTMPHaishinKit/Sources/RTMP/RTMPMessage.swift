@@ -415,6 +415,7 @@ struct RTMPAudioMessage: RTMPMessage {
         }
         self.streamId = streamId
         self.timestamp = timestamp
+        print("audio ts", timestamp)
         switch audioBuffer.format.formatDescription.mediaSubType {
         case .opus:
             var buffer = Data([RTMPAudioCodec.exheader.rawValue << 4 | RTMPAudioPacketType.codedFrames.rawValue])
@@ -509,6 +510,7 @@ struct RTMPVideoMessage: RTMPMessage {
         }
         self.streamId = streamId
         self.timestamp = timestamp
+        print("video ts", timestamp)
         switch formatDescription.mediaSubType {
         case .h264:
             guard let configurationBox = formatDescription.configurationBox else {
