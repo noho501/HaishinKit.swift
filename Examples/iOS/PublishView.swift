@@ -1,4 +1,5 @@
 import AVFoundation
+import Charts
 import HaishinKit
 import SwiftUI
 
@@ -50,6 +51,17 @@ struct PublishView: View {
                 } else {
                     MTHKViewRepresentable(previewSource: model)
                 }
+            }
+            VStack {
+                Spacer()
+                Chart(model.stats) {
+                    LineMark(
+                        x: .value("time", $0.date),
+                        y: .value("currentBytesOutPerSecond", $0.currentBytesOutPerSecond)
+                    )
+                }
+                .frame(height: 300)
+                .padding(32)
             }
             VStack(alignment: .trailing) {
                 HStack(spacing: 16) {
@@ -135,6 +147,20 @@ struct PublishView: View {
                 .onChange(of: model.visualEffectItem) { tag in
                     model.setVisualEffet(tag)
                 }
+                Slider(
+                    value: $model.videoBitRates,
+                    in: 100...4000,
+                    step: 100
+                ) {
+                    Text("Video BitRate(kbp)")
+                } minimumValueLabel: {
+                    Text("100")
+                } maximumValueLabel: {
+                    Text("4,000")
+                }
+                .frame(width: 300)
+                .padding(32)
+                Text("\(Int(model.videoBitRates))/kbps")
             }
             VStack {
                 Spacer()
