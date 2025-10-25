@@ -87,7 +87,13 @@ public final class Screen: ScreenObjectContainerConvertible {
             renderer.synchronizationClock = newValue
         }
     }
-    private(set) var renderer: (any ScreenRenderer) = ScreenRendererByCPU()
+    private(set) var renderer: (any ScreenRenderer) = ScreenRendererByCPU() {
+        didSet {
+            renderer.bounds = oldValue.bounds
+            renderer.backgroundColor = oldValue.backgroundColor
+            renderer.synchronizationClock = oldValue.synchronizationClock
+        }
+    }
     private(set) var targetTimestamp: TimeInterval = 0.0
     private(set) var videoTrackScreenObject = VideoTrackScreenObject()
     private var videoCaptureLatency: TimeInterval = 0.0
