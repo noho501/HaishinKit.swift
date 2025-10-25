@@ -28,6 +28,11 @@ public struct VideoCodecSettings: Codable, Sendable {
         @available(iOS 16.0, tvOS 16.0, macOS 13.0, *)
         public static let constant = BitRateMode(key: .constantBitRate)
 
+        /// The variable bit rate.
+        /// - seealso: [kVTCompressionPropertyKey_VariableBitRate](https://developer.apple.com/documentation/videotoolbox/kvtcompressionpropertykey_variablebitrate)
+        @available(iOS 26.0, tvOS 26.0, macOS 26.0, *)
+        public static let variable = BitRateMode(key: .variableBitRate)
+
         let key: VTSessionOptionKey
 
         public var description: String {

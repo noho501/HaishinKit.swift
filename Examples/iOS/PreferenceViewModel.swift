@@ -32,6 +32,9 @@ final class PreferenceViewModel: ObservableObject {
         if #available(iOS 16.0, *) {
             bitRateModes.append(.constant)
         }
+        if #available(iOS 26.0, *) {
+            bitRateModes.append(.variable)
+        }
     }
 
     func makeVideoCodecSettings(_ settings: VideoCodecSettings) -> VideoCodecSettings {

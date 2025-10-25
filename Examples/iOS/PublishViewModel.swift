@@ -29,6 +29,19 @@ final class PublishViewModel: ObservableObject {
     }
     @Published private(set) var audioSources: [AudioSource] = []
     @Published private(set) var isRecording = false
+    @Published private(set) var stats: [Stats] = []
+    @Published var videoBitRates: Double = 100 {
+        didSet {
+            Task {
+                guard let session else {
+                    return
+                }
+                var videoSettings = await session.stream.videoSettings
+                videoSettings.bitRate = Int(videoBitRates * 1000)
+                try await session.stream.setVideoSettings(videoSettings)
+            }
+        }
+    }
     // If you want to use the multi-camera feature, please make create a MediaMixer with a capture mode.
     // let mixer = MediaMixer(captureSesionMode: .multi)
     private(set) var mixer = MediaMixer(captureSessionMode: .multi)
@@ -51,6 +64,7 @@ final class PublishViewModel: ObservableObject {
             guard let session else {
                 return
             }
+            stats.removeAll()
             do {
                 try await session.connect {
                     Task { @MainActor in
@@ -157,6 +171,13 @@ final class PublishViewModel: ObservableObject {
             guard let session else {
                 return
             }
+            let videoSettings = await session.stream.videoSettings
+            videoBitRates = Double(videoSettings.bitRate / 1000)
+            await session.stream.setBitRateStrategy(StatsMonitor({ data in
+                Task { @MainActor in
+                    self.stats.append(data)
+                }
+            }))
             await mixer.addOutput(session.stream)
             tasks.append(Task {
                 for await readyState in await session.readyState {
