@@ -160,13 +160,9 @@ public final actor MediaMixer {
     /// ```
     @available(tvOS 17.0, *)
     public func attachVideo(_ device: AVCaptureDevice?, track: UInt8 = 0, configuration: VideoDeviceConfigurationBlock? = nil) async throws {
-        let frameRate = self.frameRate
         return try await withCheckedThrowingContinuation { continuation in
             do {
-                try videoIO.attachVideo(track, device: device) { video in
-                    try? video.setFrameRate(frameRate)
-                    try configuration?(video)
-                }
+                try videoIO.attachVideo(track, device: device, configuration: configuration)
                 continuation.resume()
             } catch {
                 continuation.resume(throwing: Error.failedToAttach(error))
