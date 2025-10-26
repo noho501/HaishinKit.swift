@@ -191,7 +191,7 @@ final class CaptureSession {
 extension CaptureSession: CaptureSessionConvertible {
     // MARK: CaptureSessionConvertible
     @available(tvOS 17.0, *)
-    func configuration(_ lambda: (_ session: AVCaptureSession) throws -> Void ) rethrows {
+    func configuration(_ lambda: (_ session: AVCaptureSession) throws -> Void) rethrows {
         session.beginConfiguration()
         defer {
             session.commitConfiguration()

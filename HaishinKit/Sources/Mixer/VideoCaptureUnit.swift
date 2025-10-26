@@ -93,22 +93,21 @@ final class VideoCaptureUnit: CaptureUnit {
 
     @available(tvOS 17.0, *)
     func attachVideo(_ track: UInt8, device: AVCaptureDevice?, configuration: VideoDeviceConfigurationBlock?) throws {
-        guard devices[track]?.device != device else {
-            return
-        }
-        if hasDevice && device != nil && devices[track]?.device == nil && session.isMultiCamSessionEnabled == false {
+        if hasDevice && device != nil && session.isMultiCamSessionEnabled == false {
             throw Error.multiCamNotSupported
         }
         try session.configuration { _ in
-            for capture in devices.values where capture.device == device {
-                try? capture.attachDevice(nil, session: session, videoUnit: self)
-            }
-            guard let capture = self.device(for: track) else {
-                return
-            }
-            try? configuration?(capture)
+            session.detachCapture(self.devices[track])
             videoMixer.reset(track)
-            try capture.attachDevice(device, session: session, videoUnit: self)
+            if let device {
+                let capture = try VideoDeviceUnit(track, device: device)
+                capture.videoOrientation = videoOrientation
+                capture.setSampleBufferDelegate(self)
+                try? configuration?(capture)
+                session.attachCapture(capture)
+                capture.apply()
+                self.devices[track] = capture
+            }
         }
     }
 
@@ -138,28 +137,13 @@ final class VideoCaptureUnit: CaptureUnit {
     }
 
     @available(tvOS 17.0, *)
-    func makeDataOutput(_ track: UInt8) -> IOVideoCaptureUnitDataOutput {
+    func makeDataOutput(_ track: UInt8) -> VideoCaptureUnitDataOutput {
         return .init(track: track, videoMixer: videoMixer)
     }
 
     func finish() {
         inputsContinuation?.finish()
         outputContinuation?.finish()
-    }
-
-    @available(tvOS 17.0, *)
-    private func device(for track: UInt8) -> VideoDeviceUnit? {
-        #if os(tvOS)
-        if _devices[track] == nil {
-            _devices[track] = .init(track)
-        }
-        return _devices[track] as? VideoDeviceUnit
-        #else
-        if devices[track] == nil {
-            devices[track] = .init(track)
-        }
-        return devices[track]
-        #endif
     }
 }
 

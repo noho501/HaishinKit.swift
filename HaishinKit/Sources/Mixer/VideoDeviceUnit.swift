@@ -86,10 +86,26 @@ public final class VideoDeviceUnit: DeviceUnit {
     }
     #endif
 
-    private var dataOutput: IOVideoCaptureUnitDataOutput?
+    private var dataOutput: VideoCaptureUnitDataOutput?
 
-    init(_ track: UInt8) {
+    init(_ track: UInt8, device: AVCaptureDevice) throws {
         self.track = track
+        input = try AVCaptureDeviceInput(device: device)
+        self.output = AVCaptureVideoDataOutput()
+        self.device = device
+        #if os(iOS)
+        if let output, let port = input?.ports.first(where: { $0.mediaType == .video && $0.sourceDeviceType == device.deviceType && $0.sourceDevicePosition == device.position }) {
+            connection = AVCaptureConnection(inputPorts: [port], output: output)
+        } else {
+            connection = nil
+        }
+        #elseif os(tvOS) || os(macOS)
+        if let output, let port = input?.ports.first(where: { $0.mediaType == .video }) {
+            connection = AVCaptureConnection(inputPorts: [port], output: output)
+        } else {
+            connection = nil
+        }
+        #endif
     }
 
     /// Sets the frame rate of a device capture.
@@ -121,53 +137,6 @@ public final class VideoDeviceUnit: DeviceUnit {
         self.frameRate = frameRate
     }
 
-    func attachDevice(_ device: AVCaptureDevice?, session: some CaptureSessionConvertible, videoUnit: VideoCaptureUnit) throws {
-        setSampleBufferDelegate(nil)
-        session.detachCapture(self)
-        guard let device else {
-            self.device = nil
-            input = nil
-            output = nil
-            connection = nil
-            return
-        }
-        self.device = device
-        input = try AVCaptureDeviceInput(device: device)
-        output = AVCaptureVideoDataOutput()
-        #if os(iOS)
-        if let output, let port = input?.ports.first(where: { $0.mediaType == .video && $0.sourceDeviceType == device.deviceType && $0.sourceDevicePosition == device.position }) {
-            connection = AVCaptureConnection(inputPorts: [port], output: output)
-        } else {
-            connection = nil
-        }
-        #elseif os(tvOS) || os(macOS)
-        if let output, let port = input?.ports.first(where: { $0.mediaType == .video }) {
-            connection = AVCaptureConnection(inputPorts: [port], output: output)
-        } else {
-            connection = nil
-        }
-        #endif
-        session.attachCapture(self)
-        #if os(iOS) || os(tvOS) || os(macOS)
-        output?.connections.forEach {
-            if $0.isVideoMirroringSupported {
-                $0.isVideoMirrored = isVideoMirrored
-            }
-            #if os(iOS) || os(macOS)
-            if $0.isVideoOrientationSupported {
-                $0.videoOrientation = videoOrientation
-            }
-            #endif
-            #if os(iOS)
-            if $0.isVideoStabilizationSupported {
-                $0.preferredVideoStabilizationMode = preferredVideoStabilizationMode
-            }
-            #endif
-        }
-        #endif
-        setSampleBufferDelegate(videoUnit)
-    }
-
     #if os(iOS) || os(tvOS) || os(macOS)
     func setTorchMode(_ torchMode: AVCaptureDevice.TorchMode) {
         guard let device, device.isTorchModeSupported(torchMode) else {
@@ -185,19 +154,34 @@ public final class VideoDeviceUnit: DeviceUnit {
     }
     #endif
 
-    private func setSampleBufferDelegate(_ videoUnit: VideoCaptureUnit?) {
-        if let videoUnit {
-            #if os(iOS) || os(macOS)
-            videoOrientation = videoUnit.videoOrientation
-            #endif
-        }
+    func setSampleBufferDelegate(_ videoUnit: VideoCaptureUnit?) {
         dataOutput = videoUnit?.makeDataOutput(track)
         output?.setSampleBufferDelegate(dataOutput, queue: videoUnit?.lockQueue)
+    }
+
+    func apply() {
+        #if os(iOS) || os(tvOS) || os(macOS)
+        output?.connections.forEach {
+            if $0.isVideoMirroringSupported {
+                $0.isVideoMirrored = isVideoMirrored
+            }
+            #if os(iOS) || os(macOS)
+            if $0.isVideoOrientationSupported {
+                $0.videoOrientation = videoOrientation
+            }
+            #endif
+            #if os(iOS)
+            if $0.isVideoStabilizationSupported {
+                $0.preferredVideoStabilizationMode = preferredVideoStabilizationMode
+            }
+            #endif
+        }
+        #endif
     }
 }
 
 @available(tvOS 17.0, *)
-final class IOVideoCaptureUnitDataOutput: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+final class VideoCaptureUnitDataOutput: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     private let track: UInt8
     private let videoMixer: VideoMixer<VideoCaptureUnit>
 
