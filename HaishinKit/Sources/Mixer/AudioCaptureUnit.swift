@@ -63,13 +63,14 @@ final class AudioCaptureUnit: CaptureUnit {
     @available(tvOS 17.0, *)
     func attachAudio(_ track: UInt8, device: AVCaptureDevice?, configuration: AudioDeviceConfigurationBlock?) throws {
         try session.configuration { _ in
-            session.detachCapture(self.devices[track])
+            session.detachCapture(devices[track])
+            devices[track] = nil
             if let device {
                 let capture = try AudioDeviceUnit(track, device: device)
                 capture.setSampleBufferDelegate(self)
                 try? configuration?(capture)
                 session.attachCapture(capture)
-                self.devices[track] = capture
+                devices[track] = capture
             }
         }
     }

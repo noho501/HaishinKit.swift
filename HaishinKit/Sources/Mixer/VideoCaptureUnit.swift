@@ -93,20 +93,21 @@ final class VideoCaptureUnit: CaptureUnit {
 
     @available(tvOS 17.0, *)
     func attachVideo(_ track: UInt8, device: AVCaptureDevice?, configuration: VideoDeviceConfigurationBlock?) throws {
-        if hasDevice && device != nil && session.isMultiCamSessionEnabled == false {
-            throw Error.multiCamNotSupported
-        }
         try session.configuration { _ in
-            session.detachCapture(self.devices[track])
+            session.detachCapture(devices[track])
             videoMixer.reset(track)
+            devices[track] = nil
             if let device {
+                if hasDevice && session.isMultiCamSessionEnabled == false {
+                    throw Error.multiCamNotSupported
+                }
                 let capture = try VideoDeviceUnit(track, device: device)
                 capture.videoOrientation = videoOrientation
                 capture.setSampleBufferDelegate(self)
                 try? configuration?(capture)
                 session.attachCapture(capture)
                 capture.apply()
-                self.devices[track] = capture
+                devices[track] = capture
             }
         }
     }
