@@ -274,7 +274,7 @@ public actor StreamRecorder {
             break
         }
 
-        if input.isReadyForMoreMediaData {
+        if input.isReadyForMoreMediaData, writer.status == .writing {
             switch mediaType {
             case .audio:
                 if input.append(sampleBuffer) {
