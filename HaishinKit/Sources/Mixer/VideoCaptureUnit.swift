@@ -66,7 +66,7 @@ final class VideoCaptureUnit: CaptureUnit {
 
     var dynamicRangeMode: DynamicRangeMode = .sdr {
         didSet {
-            guard dynamicRangeMode != oldValue else {
+            guard dynamicRangeMode != oldValue, #available(tvOS 17.0, *) else {
                 return
             }
             try? session.configuration { _ in
@@ -90,7 +90,12 @@ final class VideoCaptureUnit: CaptureUnit {
     private var _devices: [UInt8: Any] = [:]
     @available(tvOS 17.0, *)
     var devices: [UInt8: VideoDeviceUnit] {
-        return _devices as! [UInt8: VideoDeviceUnit]
+        get {
+            _devices as! [UInt8: VideoDeviceUnit]
+        }
+        set {
+            _devices = newValue
+        }
     }
     #elseif os(iOS) || os(macOS) || os(visionOS)
     var devices: [UInt8: VideoDeviceUnit] = [:]
@@ -118,7 +123,9 @@ final class VideoCaptureUnit: CaptureUnit {
                 }
                 let capture = try VideoDeviceUnit(track, device: device)
                 try? capture.setDynamicRangeMode(dynamicRangeMode)
+                #if os(iOS) || os(macOS)
                 capture.videoOrientation = videoOrientation
+                #endif
                 capture.setSampleBufferDelegate(self)
                 try? configuration?(capture)
                 session.attachCapture(capture)

@@ -450,7 +450,9 @@ extension MediaMixer: AsyncRunner {
         }
         isRunning = true
         setVideoRenderingMode(videoMixerSettings.mode)
-        startCapturing()
+        if #available(tvOS 17.0, *) {
+            startCapturing()
+        }
         Task {
             for await inputs in videoIO.inputs {
                 Task { @ScreenActor in
@@ -506,7 +508,9 @@ extension MediaMixer: AsyncRunner {
             return
         }
         isRunning = false
-        stopCapturing()
+        if #available(tvOS 17.0, *) {
+            stopCapturing()
+        }
         audioIO.finish()
         videoIO.finish()
         Task { @MainActor in
