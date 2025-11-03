@@ -7,6 +7,7 @@ final class ScreenRendererByCPU: ScreenRenderer {
     static let doNotTile = vImage_Flags(kvImageDoNotTile)
 
     var bounds: CGRect = .init(origin: .zero, size: Screen.size)
+    let imageOptions: [CIImageOption: Any]?
     var synchronizationClock: CMClock?
     var presentationTimeStamp: CMTime = .zero
 
@@ -75,6 +76,14 @@ final class ScreenRendererByCPU: ScreenRenderer {
     private lazy var choromaKeyProcessor: ChromaKeyProcessor? = {
         return try? ChromaKeyProcessor()
     }()
+
+    init(dynamicRangeMode: DynamicRangeMode) {
+        if let colorSpace = dynamicRangeMode.colorSpace {
+            imageOptions = [.colorSpace: colorSpace]
+        } else {
+            imageOptions = nil
+        }
+    }
 
     func setTarget(_ pixelBuffer: CVPixelBuffer?) {
         guard let pixelBuffer else {

@@ -29,6 +29,21 @@ final class PublishViewModel: ObservableObject {
     }
     @Published private(set) var audioSources: [AudioSource] = []
     @Published private(set) var isRecording = false
+    @Published var isHDREnabled = false {
+        didSet {
+            Task {
+                do {
+                    if isHDREnabled {
+                        try await mixer.setDynamicRangeMode(.hdr)
+                    } else {
+                        try await mixer.setDynamicRangeMode(.sdr)
+                    }
+                } catch {
+                    logger.info(error)
+                }
+            }
+        }
+    }
     @Published private(set) var stats: [Stats] = []
     @Published var videoBitRates: Double = 100 {
         didSet {
@@ -219,7 +234,7 @@ final class PublishViewModel: ObservableObject {
             // SetUp a mixer.
             await mixer.setMonitoringEnabled(DeviceUtil.isHeadphoneConnected())
             var videoMixerSettings = await mixer.videoMixerSettings
-            videoMixerSettings.mode = .offscreen
+            videoMixerSettings.mode = .passthrough
             await mixer.setVideoMixerSettings(videoMixerSettings)
             // Attach devices
             let back = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: currentPosition)

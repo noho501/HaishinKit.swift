@@ -16,9 +16,11 @@ final class VideoCaptureUnit: CaptureUnit {
             videoMixer.settings = newValue
         }
     }
+
     var inputFormats: [UInt8: CMFormatDescription] {
         return videoMixer.inputFormats
     }
+
     #if os(iOS) || os(tvOS) || os(macOS)
     var isTorchEnabled = false {
         didSet {
@@ -62,6 +64,19 @@ final class VideoCaptureUnit: CaptureUnit {
         }
     }
 
+    var dynamicRangeMode: DynamicRangeMode = .sdr {
+        didSet {
+            guard dynamicRangeMode != oldValue else {
+                return
+            }
+            try? session.configuration { _ in
+                for capture in devices.values {
+                    try capture.setDynamicRangeMode(dynamicRangeMode)
+                }
+            }
+        }
+    }
+
     private lazy var videoMixer = {
         var videoMixer = VideoMixer<VideoCaptureUnit>()
         videoMixer.delegate = self
@@ -102,6 +117,7 @@ final class VideoCaptureUnit: CaptureUnit {
                     throw Error.multiCamNotSupported
                 }
                 let capture = try VideoDeviceUnit(track, device: device)
+                try? capture.setDynamicRangeMode(dynamicRangeMode)
                 capture.videoOrientation = videoOrientation
                 capture.setSampleBufferDelegate(self)
                 try? configuration?(capture)
