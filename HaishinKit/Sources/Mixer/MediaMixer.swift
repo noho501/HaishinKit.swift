@@ -49,6 +49,9 @@ public final actor MediaMixer {
     /// The capture session mode.
     public let captureSessionMode: CaptureSessionMode
 
+    /// The feature to mix multiple audio tracks. For example, it is possible to mix .appAudio and .micAudio from ReplayKit.
+    public let isMultiTrackAudioMixingEnabled: Bool
+
     /// The dynamic range mode.
     public private(set) var dynamicRangeMode: DynamicRangeMode = .sdr
 
@@ -65,9 +68,6 @@ public final actor MediaMixer {
     public var isTorchEnabled: Bool {
         videoIO.isTorchEnabled
     }
-
-    /// The feature to mix multiple audio tracks. For example, it is possible to mix .appAudio and .micAudio from ReplayKit.
-    public let isMultiTrackAudioMixingEnabled: Bool
 
     /// The sessionPreset for the AVCaptureSession.
     @available(tvOS 17.0, *)
