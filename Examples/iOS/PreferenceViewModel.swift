@@ -1,3 +1,4 @@
+import Combine
 import HaishinKit
 import SwiftUI
 
@@ -29,10 +30,10 @@ final class PreferenceViewModel: ObservableObject {
     var isGPURendererEnabled: Bool = true
 
     init() {
-        if #available(iOS 16.0, *) {
+        if #available(iOS 16.0, tvOS 16.0, *) {
             bitRateModes.append(.constant)
         }
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, tvOS 26.0, *) {
             bitRateModes.append(.variable)
         }
     }
