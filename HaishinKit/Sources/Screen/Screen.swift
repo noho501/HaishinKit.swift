@@ -226,4 +226,11 @@ public final class Screen: ScreenObjectContainerConvertible {
         let diff = ceil((targetTimestamp - hostPresentationTimeStamp.seconds) * 10000) / 10000
         videoCaptureLatency = diff
     }
+
+    func reset() {
+        let screens: [VideoTrackScreenObject] = root.getScreenObjects()
+        for screen in screens {
+            screen.reset()
+        }
+    }
 }

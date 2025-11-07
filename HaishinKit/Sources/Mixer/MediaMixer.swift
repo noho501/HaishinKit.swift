@@ -444,7 +444,7 @@ public final actor MediaMixer {
 
 extension MediaMixer: AsyncRunner {
     // MARK: AsyncRunner
-    public func startRunning() {
+    public func startRunning() async {
         guard !isRunning else {
             return
         }
@@ -503,22 +503,24 @@ extension MediaMixer: AsyncRunner {
         #endif
     }
 
-    public func stopRunning() {
+    public func stopRunning() async {
         guard isRunning else {
             return
         }
-        isRunning = false
         if #available(tvOS 17.0, *) {
             stopCapturing()
         }
         audioIO.finish()
         videoIO.finish()
-        Task { @MainActor in
+        // Wait for the task to finish to prevent memory leaks.
+        await Task { @MainActor in
             cancellables.forEach { $0.cancel() }
             cancellables.removeAll()
-        }
-        Task { @ScreenActor in
+        }.value
+        await Task { @ScreenActor in
             displayLink.stopRunning()
-        }
+            screen.reset()
+        }.value
+        isRunning = false
     }
 }

@@ -41,17 +41,11 @@ final class CaptureSession {
         capabilities.isMultitaskingCameraAccessEnabled(session)
     }
 
-    var isInturreped: AsyncStream<Bool> {
-        AsyncStream { continuation in
-            isInturrepedContinutation = continuation
-        }
-    }
+    @AsyncStreamedFlow
+    var isInturreped: AsyncStream<Bool>
 
-    var runtimeError: AsyncStream<AVError> {
-        AsyncStream { continutation in
-            runtimeErrorContinutation = continutation
-        }
-    }
+    @AsyncStreamedFlow
+    var runtimeError: AsyncStream<AVError>
 
     var synchronizationClock: CMClock? {
         capabilities.synchronizationClock(session)
@@ -74,18 +68,6 @@ final class CaptureSession {
     #endif
 
     private lazy var capabilities = Capabilities()
-
-    private var isInturrepedContinutation: AsyncStream<Bool>.Continuation? {
-        didSet {
-            oldValue?.finish()
-        }
-    }
-
-    private var runtimeErrorContinutation: AsyncStream<AVError>.Continuation? {
-        didSet {
-            oldValue?.finish()
-        }
-    }
 
     deinit {
         if session.isRunning {
@@ -114,17 +96,11 @@ final class CaptureSession {
         }
     }
 
-    var isInturreped: AsyncStream<Bool> {
-        AsyncStream { continuation in
-            isInturrepedContinutation = continuation
-        }
-    }
+    @AsyncStreamedFlow
+    var isInturreped: AsyncStream<Bool>
 
-    var runtimeError: AsyncStream<AVError> {
-        AsyncStream { continutation in
-            runtimeErrorContinutation = continutation
-        }
-    }
+    @AsyncStreamedFlow
+    var runtimeError: AsyncStream<AVError>
 
     var synchronizationClock: CMClock? {
         if #available(tvOS 17.0, *) {
@@ -160,18 +136,6 @@ final class CaptureSession {
             session.beginConfiguration()
             session.sessionPreset = newValue
             session.commitConfiguration()
-        }
-    }
-
-    private var isInturrepedContinutation: AsyncStream<Bool>.Continuation? {
-        didSet {
-            oldValue?.finish()
-        }
-    }
-
-    private var runtimeErrorContinutation: AsyncStream<AVError>.Continuation? {
-        didSet {
-            oldValue?.finish()
         }
     }
 
@@ -271,7 +235,7 @@ extension CaptureSession: CaptureSessionConvertible {
         NotificationCenter.default.removeObserver(self, name: .AVCaptureSessionInterruptionEnded, object: session)
         #endif
         NotificationCenter.default.removeObserver(self, name: .AVCaptureSessionRuntimeError, object: session)
-        runtimeErrorContinutation = nil
+        _runtimeError.finish()
     }
 
     @available(tvOS 17.0, *)
@@ -281,20 +245,20 @@ extension CaptureSession: CaptureSessionConvertible {
             let errorValue = notification.userInfo?[AVCaptureSessionErrorKey] as? NSError else {
             return
         }
-        runtimeErrorContinutation?.yield(AVError(_nsError: errorValue))
+        _runtimeError.yield(AVError(_nsError: errorValue))
     }
 
     #if os(iOS) || os(tvOS) || os(visionOS)
     @available(tvOS 17.0, *)
     @objc
     private func sessionWasInterrupted(_ notification: Notification) {
-        isInturrepedContinutation?.yield(true)
+        _isInturreped.yield(true)
     }
 
     @available(tvOS 17.0, *)
     @objc
     private func sessionInterruptionEnded(_ notification: Notification) {
-        isInturrepedContinutation?.yield(false)
+        _isInturreped.yield(false)
     }
     #endif
 }
@@ -371,8 +335,17 @@ final class NullCaptureSession: CaptureSessionConvertible {
 extension NullCaptureSession: Runner {
     // MARK: Runner
     func startRunning() {
+        guard !isRunning else {
+            return
+        }
+        isRunning = true
     }
 
     func stopRunning() {
+        guard isRunning else {
+            return
+        }
+        _runtimeError.finish()
+        isRunning = false
     }
 }
