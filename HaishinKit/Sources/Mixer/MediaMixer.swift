@@ -456,9 +456,13 @@ extension MediaMixer: AsyncRunner {
         Task {
             for await inputs in videoIO.inputs {
                 Task { @ScreenActor in
+                    let videoMixerSettings = await self.videoMixerSettings
+                    guard videoMixerSettings.mode == .offscreen else {
+                        return
+                    }
                     let sampleBuffer = inputs.1
                     screen.append(inputs.0, buffer: sampleBuffer)
-                    if await videoMixerSettings.mainTrack == inputs.0 {
+                    if videoMixerSettings.mainTrack == inputs.0 {
                         screen.setVideoCaptureLatency(sampleBuffer.presentationTimeStamp)
                     }
                 }
