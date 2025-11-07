@@ -11,12 +11,7 @@ final class ScreenRendererByCPU: ScreenRenderer {
     var synchronizationClock: CMClock?
     var presentationTimeStamp: CMTime = .zero
 
-    lazy var context = {
-        guard let deive = MTLCreateSystemDefaultDevice() else {
-            return CIContext(options: nil)
-        }
-        return CIContext(mtlDevice: deive)
-    }()
+    let context: CIContext
 
     var backgroundColor = CGColor(red: 0x00, green: 0x00, blue: 0x00, alpha: 0x00) {
         didSet {
@@ -78,6 +73,7 @@ final class ScreenRendererByCPU: ScreenRenderer {
     }()
 
     init(dynamicRangeMode: DynamicRangeMode) {
+        context = dynamicRangeMode.makeCIContext()
         if let colorSpace = dynamicRangeMode.colorSpace {
             imageOptions = [.colorSpace: colorSpace]
         } else {

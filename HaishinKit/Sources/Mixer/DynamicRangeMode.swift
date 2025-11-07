@@ -5,6 +5,7 @@ import CoreImage
 ///
 /// - Note: Live streaming is **not yet supported** when using HDR mode.
 public enum DynamicRangeMode: Sendable {
+    private static let colorSpaceITUR709 = CGColorSpace(name: CGColorSpace.itur_709)
     private static let colorSpaceITUR2100 = CGColorSpace(name: CGColorSpace.itur_2100_HLG)
 
     /// Standard Dynamic Range (SDR) mode.
@@ -27,26 +28,21 @@ public enum DynamicRangeMode: Sendable {
     var colorSpace: CGColorSpace? {
         switch self {
         case .sdr:
-            return nil
+            return DynamicRangeMode.colorSpaceITUR709
         case .hdr:
             return DynamicRangeMode.colorSpaceITUR2100
         }
     }
 
-    var contextOption: [CIContextOption: Any]? {
-        switch self {
-        case .sdr:
+    private var contextOptions: [CIContextOption: Any]? {
+        guard let colorSpace else {
             return nil
-        case .hdr:
-            guard let colorSpace = DynamicRangeMode.colorSpaceITUR2100 else {
-                return nil
-            }
-            return [
-                .workingFormat: CIFormat.RGBAh.rawValue,
-                .workingColorSpace: colorSpace,
-                .outputColorSpace: colorSpace
-            ]
         }
+        return [
+            .workingFormat: CIFormat.RGBAh.rawValue,
+            .workingColorSpace: colorSpace,
+            .outputColorSpace: colorSpace
+        ]
     }
 
     private var pixelFormat: OSType {
@@ -82,6 +78,13 @@ public enum DynamicRangeMode: Sendable {
                 .shouldPropagate
             )
         }
+    }
+
+    func makeCIContext() -> CIContext {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            return CIContext(options: contextOptions)
+        }
+        return CIContext(mtlDevice: device, options: contextOptions)
     }
 
     func makePixelBufferAttributes(_ size: CGSize) -> CFDictionary {
