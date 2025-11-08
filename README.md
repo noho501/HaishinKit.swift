@@ -45,8 +45,7 @@ Sponsor: [$50 per month](https://github.com/sponsors/shogo4405): Technical suppo
 ## 📖 Getting Started
 
 > [!IMPORTANT]
-> Some Xcode's debug features may be incompatible and could cause crashes. Please read the following issue and turn them off.
-> https://github.com/HaishinKit/HaishinKit.swift/issues/1722
+> There are several issues that occur when connected to Xcode. Please also refer to [this document](https://github.com/HaishinKit/HaishinKit.swift/blob/main/HaishinKit/Sources/Docs.docc/known-issue.md).
 
 ### 🔧 Examples
 - Reference implementation app for live streaming `publish` and `playback`.
