@@ -3,13 +3,13 @@ import CoreMedia
 import Foundation
 import libdatachannel
 
-protocol RTCTrackDelegate: AnyObject {
+public protocol RTCTrackDelegate: AnyObject {
     func track(_ track: RTCTrack, didSetOpen open: Bool)
     func track(_ track: RTCTrack, didOutput buffer: CMSampleBuffer)
     func track(_ track: RTCTrack, didOutput buffer: AVAudioCompressedBuffer, when: AVAudioTime)
 }
 
-final class RTCTrack: RTCChannel {
+public final class RTCTrack: RTCChannel {
     weak var delegate: (any RTCTrackDelegate)?
 
     override var isOpen: Bool {

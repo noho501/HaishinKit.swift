@@ -1,6 +1,6 @@
 import libdatachannel
 
-enum RTCState: Sendable {
+public enum RTCState: Sendable {
     case new
     case connecting
     case connected

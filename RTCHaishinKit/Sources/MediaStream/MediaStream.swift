@@ -2,7 +2,7 @@ import AVFoundation
 import HaishinKit
 import libdatachannel
 
-actor MediaStream {
+public actor MediaStream {
     enum Error: Swift.Error {
         case unsupportedCodec
     }
@@ -12,15 +12,15 @@ actor MediaStream {
 
     let id: String = UUID().uuidString
     private var _tracks: [MediaStreamTrack] = []
-    var tracks: [MediaStreamTrack] {
+    public var tracks: [MediaStreamTrack] {
         if _tracks.isEmpty {
             _tracks.append(.init(mid: "1", streamId: id, audioCodecSettings: outgoing.audioSettings))
-            _tracks.append(.init(mid: "0", streamId: id, videoCodecSettings: outgoing.videoSettings))
+            // _tracks.append(.init(mid: "0", streamId: id, videoCodecSettings: outgoing.videoSettings))
         }
         return _tracks
     }
-    private(set) var videoTrackId: UInt8? = UInt8.max
-    private(set) var audioTrackId: UInt8? = UInt8.max
+    public private(set) var videoTrackId: UInt8? = UInt8.max
+    public private(set) var audioTrackId: UInt8? = UInt8.max
     package lazy var incoming = IncomingStream(self)
     package lazy var outgoing: OutgoingStream = {
         var stream = OutgoingStream()
@@ -28,18 +28,21 @@ actor MediaStream {
         return stream
     }()
     package var outputs: [any StreamOutput] = []
-    package var readyState: StreamReadyState = .idle
+    public var readyState: StreamReadyState = .idle
     package var bitRateStrategy: (any StreamBitRateStrategy)?
     private var direction: RTCDirection = .sendonly
 
-    func setDirection(_ direction: RTCDirection) {
+    public init() {
+    }
+
+    public func setDirection(_ direction: RTCDirection) {
         self.direction = direction
         switch direction {
         case .recvonly:
             Task {
                 await incoming.startRunning()
             }
-        case .sendonly:
+        case .sendonly, .sendrecv:
             outgoing.startRunning()
             Task {
                 for await audio in outgoing.audioOutputStream {
@@ -61,7 +64,7 @@ actor MediaStream {
         }
     }
 
-    func close() async {
+    public func close() async {
         _tracks.removeAll()
         switch direction {
         case .sendonly:
@@ -77,21 +80,21 @@ actor MediaStream {
 }
 
 extension MediaStream: _Stream {
-    func setAudioSettings(_ audioSettings: AudioCodecSettings) throws {
+    public func setAudioSettings(_ audioSettings: AudioCodecSettings) throws {
         guard Self.supportedAudioCodecs.contains(audioSettings.format) else {
             throw Error.unsupportedCodec
         }
         outgoing.audioSettings = audioSettings
     }
 
-    func setVideoSettings(_ videoSettings: VideoCodecSettings) throws {
+    public func setVideoSettings(_ videoSettings: VideoCodecSettings) throws {
         guard Self.supportedVideoCodecs.contains(videoSettings.format) else {
             throw Error.unsupportedCodec
         }
         outgoing.videoSettings = videoSettings
     }
 
-    func append(_ sampleBuffer: CMSampleBuffer) {
+    public func append(_ sampleBuffer: CMSampleBuffer) {
         switch sampleBuffer.formatDescription?.mediaType {
         case .video:
             if sampleBuffer.formatDescription?.isCompressed == true {
@@ -115,7 +118,7 @@ extension MediaStream: _Stream {
         }
     }
 
-    func append(_ audioBuffer: AVAudioBuffer, when: AVAudioTime) {
+    public func append(_ audioBuffer: AVAudioBuffer, when: AVAudioTime) {
         switch audioBuffer {
         case let audioBuffer as AVAudioPCMBuffer:
             outgoing.append(audioBuffer, when: when)
@@ -131,23 +134,23 @@ extension MediaStream: _Stream {
         }
     }
 
-    func dispatch(_ event: NetworkMonitorEvent) async {
+    public func dispatch(_ event: NetworkMonitorEvent) async {
         await bitRateStrategy?.adjustBitrate(event, stream: self)
     }
 }
 
 extension MediaStream: RTCTrackDelegate {
     // MARK: RTCTrackDelegate
-    nonisolated func track(_ track: RTCTrack, didSetOpen isOpen: Bool) {
+    nonisolated public func track(_ track: RTCTrack, didSetOpen isOpen: Bool) {
     }
 
-    nonisolated func track(_ track: RTCTrack, didOutput buffer: CMSampleBuffer) {
+    nonisolated public func track(_ track: RTCTrack, didOutput buffer: CMSampleBuffer) {
         Task {
             await incoming.append(buffer)
         }
     }
 
-    nonisolated func track(_ track: RTCTrack, didOutput buffer: AVAudioCompressedBuffer, when: AVAudioTime) {
+    nonisolated public func track(_ track: RTCTrack, didOutput buffer: AVAudioCompressedBuffer, when: AVAudioTime) {
         Task {
             await incoming.append(buffer, when: when)
         }
@@ -156,7 +159,7 @@ extension MediaStream: RTCTrackDelegate {
 
 extension MediaStream: MediaMixerOutput {
     // MARK: MediaMixerOutput
-    func selectTrack(_ id: UInt8?, mediaType: CMFormatDescription.MediaType) {
+    public func selectTrack(_ id: UInt8?, mediaType: CMFormatDescription.MediaType) {
         switch mediaType {
         case .audio:
             audioTrackId = id

@@ -4,7 +4,7 @@ import Foundation
 import HaishinKit
 import libdatachannel
 
-actor MediaStreamTrack {
+public actor MediaStreamTrack {
     private static func generateSSRC() -> UInt32 {
         var ssrc: UInt32 = 0
         repeat {

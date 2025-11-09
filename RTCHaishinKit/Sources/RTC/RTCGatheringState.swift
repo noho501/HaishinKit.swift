@@ -1,6 +1,6 @@
 import libdatachannel
 
-enum RTCGatheringState: Sendable {
+public enum RTCGatheringState: Sendable {
     case new
     case inProgress
     case complete

@@ -135,4 +135,7 @@ extension HTTPSession: RTCPeerConnectionDelegate {
 
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidated: RTCIceCandidate) {
     }
+
+    nonisolated func peerConnection(_ peerConneciton: RTCPeerConnection, didReceive dataChannel: RTCDataChannel) {
+    }
 }

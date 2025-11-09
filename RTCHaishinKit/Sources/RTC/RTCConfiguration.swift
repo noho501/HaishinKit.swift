@@ -1,16 +1,26 @@
 import Foundation
 import libdatachannel
 
-protocol RTCConfigurationConvertible: Sendable {
+public protocol RTCConfigurationConvertible: Sendable {
+    /// A list of ICE server URLs used to establish the connection.
     var iceServers: [String] { get }
+    /// The local IP address to bind sockets to.
     var bindAddress: String? { get }
+    /// The type of certificate to generate for DTLS handshakes.
     var certificateType: RTCCertificateType? { get }
+    /// The ICE transport policy that controls how candidates are gathered.
     var iceTransportPolicy: RTCTransportPolicy? { get }
+    /// A Boolean value that indicates whether ICE UDP multiplexing is enabled.
     var isIceUdpMuxEnabled: Bool { get }
+    /// A Boolean value that indicates whether negotiation is performed automatically.
     var isAutoNegotionEnabled: Bool { get }
+    /// A Boolean value that forces the use of media transport even for data sessions.
     var isForceMediaTransport: Bool { get }
+    /// The port range available for allocating ICE candidates.
     var portRange: Range<UInt16>? { get }
+    /// The maximum transmission unit (MTU) for outgoing packets.
     var mtu: Int32? { get }
+    /// The maximum message size allowed for data channels.
     var maxMesasgeSize: Int32? { get }
 }
 
@@ -51,28 +61,29 @@ extension RTCConfigurationConvertible {
     }
 }
 
-struct RTCConfiguration: RTCConfigurationConvertible {
-    let iceServers: [String]
-    let bindAddress: String?
-    let certificateType: RTCCertificateType?
-    let iceTransportPolicy: RTCTransportPolicy?
-    let isIceUdpMuxEnabled: Bool
-    let isAutoNegotionEnabled: Bool
-    let isForceMediaTransport: Bool
-    let portRange: Range<UInt16>?
-    let mtu: Int32?
-    let maxMesasgeSize: Int32?
+public struct RTCConfiguration: RTCConfigurationConvertible {
+    public let iceServers: [String]
+    public let bindAddress: String?
+    public let certificateType: RTCCertificateType?
+    public let iceTransportPolicy: RTCTransportPolicy?
+    public let isIceUdpMuxEnabled: Bool
+    public let isAutoNegotionEnabled: Bool
+    public let isForceMediaTransport: Bool
+    public let portRange: Range<UInt16>?
+    public let mtu: Int32?
+    public let maxMesasgeSize: Int32?
 
-    init(iceServers: [String] = [],
-         bindAddress: String? = nil,
-         certificateType: RTCCertificateType? = nil,
-         iceTransportPolicy: RTCTransportPolicy? = nil,
-         isIceUdpMuxEnabled: Bool = false,
-         isAutoNegotionEnabled: Bool = true,
-         isForceMediaTransport: Bool = false,
-         portRange: Range<UInt16>? = nil,
-         mtu: Int32? = nil,
-         maxMesasgeSize: Int32? = nil
+    public init(
+        iceServers: [String] = [],
+        bindAddress: String? = nil,
+        certificateType: RTCCertificateType? = nil,
+        iceTransportPolicy: RTCTransportPolicy? = nil,
+        isIceUdpMuxEnabled: Bool = false,
+        isAutoNegotionEnabled: Bool = true,
+        isForceMediaTransport: Bool = false,
+        portRange: Range<UInt16>? = nil,
+        mtu: Int32? = nil,
+        maxMesasgeSize: Int32? = nil
     ) {
         self.iceServers = iceServers
         self.bindAddress = bindAddress

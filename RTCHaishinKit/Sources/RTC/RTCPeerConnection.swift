@@ -1,14 +1,15 @@
 import Foundation
 import libdatachannel
 
-protocol RTCPeerConnectionDelegate: AnyObject {
+public protocol RTCPeerConnectionDelegate: AnyObject {
     func peerConnection(_ peerConnection: RTCPeerConnection, didSet state: RTCState)
     func peerConnection(_ peerConnection: RTCPeerConnection, didSet gatheringState: RTCGatheringState)
     func peerConnection(_ peerConnection: RTCPeerConnection, didReceive track: RTCTrack)
+    func peerConnection(_ peerConneciton: RTCPeerConnection, didReceive dataChannel: RTCDataChannel)
     func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidated: RTCIceCandidate)
 }
 
-final class RTCPeerConnection {
+public final class RTCPeerConnection {
     static let audioMediaDescription = """
 m=audio 9 UDP/TLS/RTP/SAVPF 111
 a=mid:0
@@ -30,9 +31,9 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 
     static let bufferSize: Int = 1024 * 16
 
-    weak var delegate: (any RTCPeerConnectionDelegate)?
+    public weak var delegate: (any RTCPeerConnectionDelegate)?
     private let connection: Int32
-    private(set) var state: RTCState = .new {
+    public private(set) var state: RTCState = .new {
         didSet {
             delegate?.peerConnection(self, didSet: state)
         }
@@ -48,7 +49,7 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     }
     private(set) var localDescription: String = ""
 
-    init(_ config: some RTCConfigurationConvertible) {
+    public init(_ config: some RTCConfigurationConvertible) {
         connection = config.createPeerConnection()
         rtcSetUserPointer(connection, Unmanaged.passUnretained(self).toOpaque())
         rtcSetLocalDescriptionCallback(connection) { _, sdp, _, pointer in
@@ -86,6 +87,10 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
             guard let pointer else { return }
             Unmanaged<RTCPeerConnection>.fromOpaque(pointer).takeUnretainedValue().didReceiveTrack(.init(id: track))
         }
+        rtcSetDataChannelCallback(connection) { _, dataChannel, pointer in
+            guard let pointer else { return }
+            Unmanaged<RTCPeerConnection>.fromOpaque(pointer).takeUnretainedValue().didReceiveDataChannel(.init(id: dataChannel))
+        }
     }
 
     deinit {
@@ -93,10 +98,10 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
         rtcDeletePeerConnection(connection)
     }
 
-    func addTrack(_ track: MediaStreamTrack) {
+    public func addTrack(_ track: MediaStreamTrack) {
         let connection = self.connection
         Task {
-            try await track.addTrack(connection, direction: .sendonly)
+            try await track.addTrack(connection, direction: .sendrecv)
         }
     }
 
@@ -118,33 +123,40 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
         return track
     }
 
-    func setRemoteDesciption(_ sdp: String, type: SDPSessionDescriptionType) throws {
+    public func setRemoteDesciption(_ sdp: String, type: SDPSessionDescriptionType) throws {
         logger.debug(sdp, type.rawValue)
         try RTCError.check([sdp, type.rawValue].withCStrings { cStrings in
             rtcSetRemoteDescription(connection, cStrings[0], cStrings[1])
         })
     }
 
-    func setLocalDesciption(_ type: SDPSessionDescriptionType) throws {
+    public func setLocalDesciption(_ type: SDPSessionDescriptionType) throws {
         logger.debug(type.rawValue)
         try RTCError.check([type.rawValue].withCStrings { cStrings in
             rtcSetLocalDescription(connection, cStrings[0])
         })
     }
 
-    func createOffer() throws -> String {
+    public func createOffer() throws -> String {
         return try CUtil.getString { buffer, size in
             rtcCreateOffer(connection, buffer, size)
         }
     }
 
-    func createAnswer() throws -> String {
+    public func createAnswer() throws -> String {
         return try CUtil.getString { buffer, size in
             rtcCreateAnswer(connection, buffer, size)
         }
     }
 
-    func close() {
+    public func createDataChannel(_ label: String) throws -> RTCDataChannel {
+        let result = try RTCError.check([label].withCStrings { cStrings in
+            rtcCreateDataChannel(connection, cStrings[0])
+        })
+        return RTCDataChannel(id: result)
+    }
+
+    public func close() {
         do {
             try RTCError.check(rtcClosePeerConnection(connection))
         } catch {
@@ -159,5 +171,9 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 
     private func didReceiveTrack(_ track: RTCTrack) {
         delegate?.peerConnection(self, didReceive: track)
+    }
+
+    private func didReceiveDataChannel(_ dataChannel: RTCDataChannel) {
+        delegate?.peerConnection(self, didReceive: dataChannel)
     }
 }
