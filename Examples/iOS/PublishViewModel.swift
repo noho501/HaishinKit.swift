@@ -6,7 +6,7 @@ import SwiftUI
 
 @MainActor
 final class PublishViewModel: ObservableObject {
-    @Published var currentFPS: FPS = .fps30
+    @Published var currentFPS: FPS = .fps60
     @Published var visualEffectItem: VideoEffectItem = .none
     @Published private(set) var error: Error? {
         didSet {
@@ -105,6 +105,7 @@ final class PublishViewModel: ObservableObject {
         } else {
             Task {
                 let recorder = StreamRecorder()
+                await mixer.setSessionPreset(AVCaptureSession.Preset.hd1920x1080)
                 await mixer.addOutput(recorder)
                 do {
                     // When starting a recording while connected to Xcode, it freezes for about 30 seconds. iOS26 + Xcode26.
@@ -225,7 +226,7 @@ final class PublishViewModel: ObservableObject {
             videoScreenObject.horizontalAlignment = .right
             videoScreenObject.layoutMargin = .init(top: 16, left: 0, bottom: 0, right: 16)
             videoScreenObject.size = .init(width: 160 * 2, height: 90 * 2)
-            await mixer.screen.size = .init(width: 720, height: 1280)
+            await mixer.screen.size = .init(width: 1080, height: 1920)
             await mixer.screen.backgroundColor = UIColor.black.cgColor
             try? await mixer.screen.addChild(videoScreenObject)
         }
@@ -331,9 +332,9 @@ final class PublishViewModel: ObservableObject {
                 await mixer.setVideoOrientation(orientation)
             }
             if await UIDevice.current.orientation.isLandscape {
-                await mixer.screen.size = .init(width: 1280, height: 720)
+                await mixer.screen.size = .init(width: 1920, height: 1080)
             } else {
-                await mixer.screen.size = .init(width: 720, height: 1280)
+                await mixer.screen.size = .init(width: 1080, height: 1920)
             }
         }
     }
