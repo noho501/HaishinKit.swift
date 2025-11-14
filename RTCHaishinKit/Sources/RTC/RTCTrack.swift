@@ -3,16 +3,17 @@ import CoreMedia
 import Foundation
 import libdatachannel
 
-public protocol RTCTrackDelegate: AnyObject {
+protocol RTCTrackDelegate: AnyObject {
     func track(_ track: RTCTrack, didSetOpen open: Bool)
     func track(_ track: RTCTrack, didOutput buffer: CMSampleBuffer)
     func track(_ track: RTCTrack, didOutput buffer: AVAudioCompressedBuffer, when: AVAudioTime)
 }
 
 public final class RTCTrack: RTCChannel {
+    let id: Int32
     weak var delegate: (any RTCTrackDelegate)?
 
-    override var isOpen: Bool {
+    var isOpen: Bool = false {
         didSet {
             if isOpen {
                 do {
@@ -24,6 +25,8 @@ public final class RTCTrack: RTCChannel {
             delegate?.track(self, didSetOpen: isOpen)
         }
     }
+
+    var isClosed: Bool = true
 
     var mid: String {
         do {
@@ -60,6 +63,30 @@ public final class RTCTrack: RTCChannel {
 
     private var packetizer: (any RTPPacketizer)?
 
+    init(id: Int32) {
+        self.id = id
+        rtcSetUserPointer(id, Unmanaged.passUnretained(self).toOpaque())
+        rtcSetOpenCallback(id) { _, pointer in
+            guard let pointer else { return }
+            Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().isOpen = true
+        }
+        rtcSetClosedCallback(id) { _, pointer in
+            guard let pointer else { return }
+            Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().isClosed = true
+        }
+        rtcSetMessageCallback(id) { _, bytes, size, pointer in
+            guard let bytes, let pointer else { return }
+            if 0 < size {
+                let data = Data(bytes: bytes, count: Int(size))
+                Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().didReceiveMessage(data)
+            }
+        }
+        rtcSetErrorCallback(id) { _, error, pointer in
+            guard let error, let pointer else { return }
+            Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().errorOccurred(String(cString: error))
+        }
+    }
+
     deinit {
         rtcDeleteTrack(id)
     }
@@ -76,13 +103,17 @@ public final class RTCTrack: RTCChannel {
         }
     }
 
-    override func didReceiveMessage(_ message: Data) {
+    func didReceiveMessage(_ message: Data) {
         do {
             let packet = try RTPPacket(message)
             packetizer?.append(packet)
         } catch {
             logger.warn(error)
         }
+    }
+
+    private func errorOccurred(_ error: String) {
+        logger.warn(error)
     }
 
     private func makePacketizer() throws -> (any RTPPacketizer)? {

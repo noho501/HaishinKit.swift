@@ -1,20 +1,42 @@
 import Foundation
 import libdatachannel
 
+/// Delegate for receiving RTCDataChannel events.
 public protocol RTCDataChannelDelegate: AnyObject {
-    func dataChannelDidOpen(_ dataChannel: RTCDataChannel)
-    func dataChannelDidClosed(_ dataChannel: RTCDataChannel)
+    /// Called when the readyState of the data channel changes.
+    /// - Parameters:
+    ///   - dataChannel: The RTCDataChannel instance.
+    ///   - readyState: The updated readyState.
+    func dataChannel(_ dataChannel: RTCDataChannel, readyStateChanged readyState: RTCDataChannel.ReadyState)
+
+    /// Called when a binary message is received.
+    /// - Parameters:
+    ///   - dataChannel: The RTCDataChannel instance.
+    ///   - message: The received binary data.
     func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessage message: Data)
+
+    /// Called when a text message is received.
+    /// - Parameters:
+    ///   - dataChannel: The RTCDataChannel instance.
+    ///   - message: The received text message.
     func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessage message: String)
 }
 
 public final class RTCDataChannel: RTCChannel {
+    public enum ReadyState {
+        case connecting
+        case open
+        case closing
+        case closed
+    }
+
     public weak var delegate: (any RTCDataChannelDelegate)?
 
     /// The label.
     public var label: String {
         do {
-            return try CUtil.getString { buffer, size in                rtcGetDataChannelLabel(id, buffer, size)
+            return try CUtil.getString { buffer, size in
+                rtcGetDataChannelLabel(id, buffer, size)
             }
         } catch {
             logger.warn(error)
@@ -27,15 +49,37 @@ public final class RTCDataChannel: RTCChannel {
         Int(rtcGetDataChannelStream(id))
     }
 
-    override var isOpen: Bool {
+    public private(set) var readyState: ReadyState = .connecting {
         didSet {
-            delegate?.dataChannelDidOpen(self)
+            delegate?.dataChannel(self, readyStateChanged: readyState)
         }
     }
 
-    override var isClosed: Bool {
-        didSet {
-            delegate?.dataChannelDidClosed(self)
+    let id: Int32
+
+    init(id: Int32) {
+        self.id = id
+        rtcSetUserPointer(id, Unmanaged.passUnretained(self).toOpaque())
+        rtcSetOpenCallback(id) { _, pointer in
+            guard let pointer else { return }
+            Unmanaged<RTCDataChannel>.fromOpaque(pointer).takeUnretainedValue().readyState = .open
+        }
+        rtcSetClosedCallback(id) { _, pointer in
+            guard let pointer else { return }
+            Unmanaged<RTCDataChannel>.fromOpaque(pointer).takeUnretainedValue().readyState = .connecting
+        }
+        rtcSetMessageCallback(id) { _, bytes, size, pointer in
+            guard let bytes, let pointer else { return }
+            if 0 <= size {
+                let data = Data(bytes: bytes, count: Int(size))
+                Unmanaged<RTCDataChannel>.fromOpaque(pointer).takeUnretainedValue().didReceiveMessage(data)
+            } else {
+                Unmanaged<RTCDataChannel>.fromOpaque(pointer).takeUnretainedValue().didReceiveMessage(String(cString: bytes))
+            }
+        }
+        rtcSetErrorCallback(id) { _, error, pointer in
+            guard let error, let pointer else { return }
+            Unmanaged<RTCDataChannel>.fromOpaque(pointer).takeUnretainedValue().errorOccurred(String(cString: error))
         }
     }
 
@@ -43,15 +87,24 @@ public final class RTCDataChannel: RTCChannel {
         rtcDeleteDataChannel(id)
     }
 
-    override func errorOccurred(_ error: String) {
+    public func send(_ message: String) throws {
+        guard let buffer = message.data(using: .utf8) else {
+            return
+        }
+        try RTCError.check(buffer.withUnsafeBytes { pointer in
+            return rtcSendMessage(id, pointer.bindMemory(to: CChar.self).baseAddress, -Int32(message.count))
+        })
+    }
+
+    private func errorOccurred(_ error: String) {
         logger.warn(error)
     }
 
-    override func didReceiveMessage(_ message: Data) {
+    private func didReceiveMessage(_ message: Data) {
         delegate?.dataChannel(self, didReceiveMessage: message)
     }
 
-    override func didReceiveMessage(_ message: String) {
+    private func didReceiveMessage(_ message: String) {
         delegate?.dataChannel(self, didReceiveMessage: message)
     }
 }

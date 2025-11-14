@@ -2,11 +2,10 @@ import Foundation
 import libdatachannel
 
 public protocol RTCPeerConnectionDelegate: AnyObject {
-    func peerConnection(_ peerConnection: RTCPeerConnection, didSet state: RTCState)
-    func peerConnection(_ peerConnection: RTCPeerConnection, didSet gatheringState: RTCGatheringState)
-    func peerConnection(_ peerConnection: RTCPeerConnection, didReceive track: RTCTrack)
-    func peerConnection(_ peerConneciton: RTCPeerConnection, didReceive dataChannel: RTCDataChannel)
-    func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidated: RTCIceCandidate)
+    func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state: RTCState)
+    func peerConnection(_ peerConnection: RTCPeerConnection, iceGatheringChanged gatheringState: RTCGatheringState)
+    func peerConnection(_ peerConneciton: RTCPeerConnection, didOpen dataChannel: RTCDataChannel)
+    func peerConnection(_ peerConnection: RTCPeerConnection, gotIceCandidate candidated: RTCIceCandidate)
 }
 
 public final class RTCPeerConnection {
@@ -35,7 +34,7 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     private let connection: Int32
     public private(set) var state: RTCState = .new {
         didSet {
-            delegate?.peerConnection(self, didSet: state)
+            delegate?.peerConnection(self, iceConnectionChanged: state)
         }
     }
     private(set) var tracks: [RTCTrack] = []
@@ -44,7 +43,7 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     private(set) var signalingState: RTCSignalingState = .stable
     private(set) var gatheringState: RTCGatheringState = .new {
         didSet {
-            delegate?.peerConnection(self, didSet: gatheringState)
+            delegate?.peerConnection(self, iceGatheringChanged: gatheringState)
         }
     }
     private(set) var localDescription: String = ""
@@ -166,14 +165,14 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 
     private func didGenerateCandidate(_ candidated: RTCIceCandidate) {
         candidates.append(candidated)
-        delegate?.peerConnection(self, didGenerate: candidated)
+        delegate?.peerConnection(self, gotIceCandidate: candidated)
     }
 
     private func didReceiveTrack(_ track: RTCTrack) {
-        delegate?.peerConnection(self, didReceive: track)
+        logger.info(track)
     }
 
     private func didReceiveDataChannel(_ dataChannel: RTCDataChannel) {
-        delegate?.peerConnection(self, didReceive: dataChannel)
+        delegate?.peerConnection(self, didOpen: dataChannel)
     }
 }
