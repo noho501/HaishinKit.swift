@@ -2,13 +2,29 @@ import Foundation
 import libdatachannel
 
 public protocol RTCPeerConnectionDelegate: AnyObject {
-    func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state: RTCState)
+    func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state: RTCPeerConnection.ConnectionState)
     func peerConnection(_ peerConnection: RTCPeerConnection, iceGatheringChanged gatheringState: RTCGatheringState)
     func peerConnection(_ peerConneciton: RTCPeerConnection, didOpen dataChannel: RTCDataChannel)
     func peerConnection(_ peerConnection: RTCPeerConnection, gotIceCandidate candidated: RTCIceCandidate)
 }
 
 public final class RTCPeerConnection {
+    /// Represents the state of a connection.
+    public enum ConnectionState: Sendable {
+        /// The connection has been created, but no connection attempt has started yet.
+        case new
+        /// A connection attempt is currently in progress.
+        case connecting
+        /// The connection has been successfully established.
+        case connected
+        /// The connection was previously established but is now temporarily lost.
+        case disconnected
+        /// The connection has encountered an unrecoverable error.
+        case failed
+        /// The connection has been closed and will not be used again.
+        case closed
+    }
+
     static let audioMediaDescription = """
 m=audio 9 UDP/TLS/RTP/SAVPF 111
 a=mid:0
@@ -32,9 +48,9 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 
     public weak var delegate: (any RTCPeerConnectionDelegate)?
     private let connection: Int32
-    public private(set) var state: RTCState = .new {
+    public private(set) var connectionState: ConnectionState = .new {
         didSet {
-            delegate?.peerConnection(self, iceConnectionChanged: state)
+            delegate?.peerConnection(self, iceConnectionChanged: connectionState)
         }
     }
     private(set) var tracks: [RTCTrack] = []
@@ -66,8 +82,8 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
         }
         rtcSetStateChangeCallback(connection) { _, state, pointer in
             guard let pointer else { return }
-            if let state = RTCState(cValue: state) {
-                Unmanaged<RTCPeerConnection>.fromOpaque(pointer).takeUnretainedValue().state = state
+            if let state = ConnectionState(cValue: state) {
+                Unmanaged<RTCPeerConnection>.fromOpaque(pointer).takeUnretainedValue().connectionState = state
             }
         }
         rtcSetGatheringStateChangeCallback(connection) { _, gatheringState, pointer in
@@ -174,5 +190,26 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 
     private func didReceiveDataChannel(_ dataChannel: RTCDataChannel) {
         delegate?.peerConnection(self, didOpen: dataChannel)
+    }
+}
+
+extension RTCPeerConnection.ConnectionState {
+    init?(cValue: rtcState) {
+        switch cValue {
+        case RTC_NEW:
+            self = .new
+        case RTC_CONNECTING:
+            self = .connecting
+        case RTC_CONNECTED:
+            self = .connected
+        case RTC_DISCONNECTED:
+            self = .disconnected
+        case RTC_FAILED:
+            self = .failed
+        case RTC_CLOSED:
+            self = .closed
+        default:
+            return nil
+        }
     }
 }

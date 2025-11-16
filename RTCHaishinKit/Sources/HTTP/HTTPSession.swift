@@ -4,7 +4,7 @@ import HaishinKit
 actor HTTPSession: Session {
     var connected: Bool {
         get async {
-            peerConnection.state == .connected
+            peerConnection.connectionState == .connected
         }
     }
 
@@ -120,7 +120,7 @@ extension HTTPSession: RTCPeerConnectionDelegate {
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceGatheringChanged gatheringState: RTCGatheringState) {
     }
 
-    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state: RTCState) {
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state:  RTCPeerConnection.ConnectionState) {
         Task {
             if state == .connected {
                 if await mode == .publish {
