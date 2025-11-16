@@ -117,10 +117,7 @@ actor HTTPSession: Session {
 
 extension HTTPSession: RTCPeerConnectionDelegate {
     // MARK: RTCPeerConnectionDelegate
-    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceGatheringChanged gatheringState: RTCGatheringState) {
-    }
-
-    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state: RTCPeerConnection.ConnectionState) {
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, connectionStateChanged state: RTCPeerConnection.ConnectionState) {
         Task {
             if state == .connected {
                 if await mode == .publish {
@@ -128,6 +125,12 @@ extension HTTPSession: RTCPeerConnectionDelegate {
                 }
             }
         }
+    }
+
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionStateChanged iceConnectionState: RTCPeerConnection.IceConnectionState) {
+    }
+
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceGatheringStateChanged gatheringState: RTCPeerConnection.IceGatheringState) {
     }
 
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, addedTrack track: RTCTrack) {

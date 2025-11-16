@@ -9,8 +9,8 @@ protocol RTCTrackDelegate: AnyObject {
     func track(_ track: RTCTrack, didOutput buffer: AVAudioCompressedBuffer, when: AVAudioTime)
 }
 
-public final class RTCTrack: RTCChannel {
-    public enum ReadyState {
+class RTCTrack: RTCChannel {
+    enum ReadyState {
         case connecting
         case open
         case closing
@@ -103,13 +103,13 @@ public final class RTCTrack: RTCChannel {
         rtcDeleteTrack(id)
     }
 
-    func append(_ buffer: CMSampleBuffer) {
+    func send(_ buffer: CMSampleBuffer) {
         packetizer?.append(buffer) { packet in
             try? send(packet.data)
         }
     }
 
-    func append(_ buffer: AVAudioCompressedBuffer, when: AVAudioTime) {
+    func send(_ buffer: AVAudioCompressedBuffer, when: AVAudioTime) {
         packetizer?.append(buffer, when: when) { packet in
             try? send(packet.data)
         }

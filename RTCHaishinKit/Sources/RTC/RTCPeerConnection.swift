@@ -2,8 +2,9 @@ import Foundation
 import libdatachannel
 
 public protocol RTCPeerConnectionDelegate: AnyObject {
-    func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state: RTCPeerConnection.ConnectionState)
-    func peerConnection(_ peerConnection: RTCPeerConnection, iceGatheringChanged gatheringState: RTCGatheringState)
+    func peerConnection(_ peerConnection: RTCPeerConnection, connectionStateChanged connectionState: RTCPeerConnection.ConnectionState)
+    func peerConnection(_ peerConnection: RTCPeerConnection, iceGatheringStateChanged iceGatheringState: RTCPeerConnection.IceGatheringState)
+    func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionStateChanged iceConnectionState: RTCPeerConnection.IceConnectionState)
     func peerConnection(_ peerConneciton: RTCPeerConnection, didOpen dataChannel: RTCDataChannel)
     func peerConnection(_ peerConnection: RTCPeerConnection, gotIceCandidate candidated: RTCIceCandidate)
 }
@@ -22,6 +23,22 @@ public final class RTCPeerConnection {
         /// The connection has encountered an unrecoverable error.
         case failed
         /// The connection has been closed and will not be used again.
+        case closed
+    }
+
+    public enum IceGatheringState: Sendable {
+        case new
+        case inProgress
+        case complete
+    }
+
+    public enum IceConnectionState: Sendable {
+        case new
+        case checking
+        case connected
+        case completed
+        case failed
+        case disconnected
         case closed
     }
 
@@ -49,17 +66,21 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     public weak var delegate: (any RTCPeerConnectionDelegate)?
     public private(set) var connectionState: ConnectionState = .new {
         didSet {
-            delegate?.peerConnection(self, iceConnectionChanged: connectionState)
+            delegate?.peerConnection(self, connectionStateChanged: connectionState)
+        }
+    }
+    public private(set) var iceConnectionState: IceConnectionState = .new {
+        didSet {
+            delegate?.peerConnection(self, iceConnectionStateChanged: iceConnectionState)
         }
     }
     private let connection: Int32
     private(set) var tracks: [RTCTrack] = []
-    private(set) var iceState: RTCIceState = .new
     private(set) var candidates: [RTCIceCandidate] = []
     private(set) var signalingState: RTCSignalingState = .stable
-    private(set) var gatheringState: RTCGatheringState = .new {
+    private(set) var iceGatheringState: IceGatheringState = .new {
         didSet {
-            delegate?.peerConnection(self, iceGatheringChanged: gatheringState)
+            delegate?.peerConnection(self, iceGatheringStateChanged: iceGatheringState)
         }
     }
     private(set) var localDescription: String = ""
@@ -86,10 +107,16 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
                 Unmanaged<RTCPeerConnection>.fromOpaque(pointer).takeUnretainedValue().connectionState = state
             }
         }
+        rtcSetIceStateChangeCallback(connection) { _, state, pointer in
+            guard let pointer else { return }
+            if let state = IceConnectionState(cValue: state) {
+                Unmanaged<RTCPeerConnection>.fromOpaque(pointer).takeUnretainedValue().iceConnectionState = state
+            }
+        }
         rtcSetGatheringStateChangeCallback(connection) { _, gatheringState, pointer in
             guard let pointer else { return }
-            if let gatheringState = RTCGatheringState(cValue: gatheringState) {
-                Unmanaged<RTCPeerConnection>.fromOpaque(pointer).takeUnretainedValue().gatheringState = gatheringState
+            if let gatheringState = IceGatheringState(cValue: gatheringState) {
+                Unmanaged<RTCPeerConnection>.fromOpaque(pointer).takeUnretainedValue().iceGatheringState = gatheringState
             }
         }
         rtcSetSignalingStateChangeCallback(connection) { _, signalingState, pointer in
@@ -207,6 +234,44 @@ extension RTCPeerConnection.ConnectionState {
         case RTC_FAILED:
             self = .failed
         case RTC_CLOSED:
+            self = .closed
+        default:
+            return nil
+        }
+    }
+}
+
+extension RTCPeerConnection.IceGatheringState {
+    init?(cValue: rtcGatheringState) {
+        switch cValue {
+        case RTC_GATHERING_NEW:
+            self = .new
+        case RTC_GATHERING_INPROGRESS:
+            self = .inProgress
+        case RTC_GATHERING_COMPLETE:
+            self = .complete
+        default:
+            return nil
+        }
+    }
+}
+
+extension RTCPeerConnection.IceConnectionState {
+    init?(cValue: rtcIceState) {
+        switch cValue {
+        case RTC_ICE_NEW:
+            self = .new
+        case RTC_ICE_CHECKING:
+            self = .checking
+        case RTC_ICE_CONNECTED:
+            self = .connected
+        case RTC_ICE_COMPLETED:
+            self = .completed
+        case RTC_ICE_FAILED:
+            self = .failed
+        case RTC_ICE_DISCONNECTED:
+            self = .disconnected
+        case RTC_ICE_CLOSED:
             self = .closed
         default:
             return nil

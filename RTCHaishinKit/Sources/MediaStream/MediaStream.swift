@@ -100,7 +100,7 @@ extension MediaStream: _Stream {
             if sampleBuffer.formatDescription?.isCompressed == true {
                 Task {
                     for track in _tracks {
-                        await track.append(sampleBuffer)
+                        await track.send(sampleBuffer)
                     }
                 }
             } else {
@@ -126,7 +126,7 @@ extension MediaStream: _Stream {
         case let audioBuffer as AVAudioCompressedBuffer:
             Task {
                 for track in _tracks {
-                    await track.append(audioBuffer, when: when)
+                    await track.send(audioBuffer, when: when)
                 }
             }
         default:
@@ -141,16 +141,16 @@ extension MediaStream: _Stream {
 
 extension MediaStream: RTCTrackDelegate {
     // MARK: RTCTrackDelegate
-    nonisolated public func track(_ track: RTCTrack, readyStateChanged readyState: RTCTrack.ReadyState) {
+    nonisolated func track(_ track: RTCTrack, readyStateChanged readyState: RTCTrack.ReadyState) {
     }
 
-    nonisolated public func track(_ track: RTCTrack, didOutput buffer: CMSampleBuffer) {
+    nonisolated func track(_ track: RTCTrack, didOutput buffer: CMSampleBuffer) {
         Task {
             await incoming.append(buffer)
         }
     }
 
-    nonisolated public func track(_ track: RTCTrack, didOutput buffer: AVAudioCompressedBuffer, when: AVAudioTime) {
+    nonisolated func track(_ track: RTCTrack, didOutput buffer: AVAudioCompressedBuffer, when: AVAudioTime) {
         Task {
             await incoming.append(buffer, when: when)
         }

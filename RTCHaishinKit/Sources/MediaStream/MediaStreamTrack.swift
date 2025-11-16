@@ -50,12 +50,12 @@ public actor MediaStreamTrack {
         self.profile = nil
     }
 
-    func append(_ buffer: CMSampleBuffer) {
-        track?.append(buffer)
+    func send(_ buffer: CMSampleBuffer) {
+        track?.send(buffer)
     }
 
-    func append(_ buffer: AVAudioCompressedBuffer, when: AVAudioTime) {
-        track?.append(buffer, when: when)
+    func send(_ buffer: AVAudioCompressedBuffer, when: AVAudioTime) {
+        track?.send(buffer, when: when)
     }
 
     func addTrack(_ connection: Int32, direction: RTCDirection) throws {
