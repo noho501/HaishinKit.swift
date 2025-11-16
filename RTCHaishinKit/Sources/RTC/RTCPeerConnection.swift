@@ -47,12 +47,12 @@ a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     static let bufferSize: Int = 1024 * 16
 
     public weak var delegate: (any RTCPeerConnectionDelegate)?
-    private let connection: Int32
     public private(set) var connectionState: ConnectionState = .new {
         didSet {
             delegate?.peerConnection(self, iceConnectionChanged: connectionState)
         }
     }
+    private let connection: Int32
     private(set) var tracks: [RTCTrack] = []
     private(set) var iceState: RTCIceState = .new
     private(set) var candidates: [RTCIceCandidate] = []

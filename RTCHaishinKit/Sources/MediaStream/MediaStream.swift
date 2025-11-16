@@ -141,7 +141,7 @@ extension MediaStream: _Stream {
 
 extension MediaStream: RTCTrackDelegate {
     // MARK: RTCTrackDelegate
-    nonisolated public func track(_ track: RTCTrack, didSetOpen isOpen: Bool) {
+    nonisolated public func track(_ track: RTCTrack, readyStateChanged readyState: RTCTrack.ReadyState) {
     }
 
     nonisolated public func track(_ track: RTCTrack, didOutput buffer: CMSampleBuffer) {

@@ -23,10 +23,15 @@ public protocol RTCDataChannelDelegate: AnyObject {
 }
 
 public final class RTCDataChannel: RTCChannel {
+    /// Represents the ready state of an RTCDataChannel.
     public enum ReadyState {
+        /// The data channel is being created and the connection is in progress.
         case connecting
+        /// The data channel is fully established and ready to send and receive messages.
         case open
+        /// The data channel is in the process of closing.
         case closing
+        /// The data channel has been closed and can no longer be used.
         case closed
     }
 

@@ -4,29 +4,21 @@ import Foundation
 import libdatachannel
 
 protocol RTCTrackDelegate: AnyObject {
-    func track(_ track: RTCTrack, didSetOpen open: Bool)
+    func track(_ track: RTCTrack, readyStateChanged readyState: RTCTrack.ReadyState)
     func track(_ track: RTCTrack, didOutput buffer: CMSampleBuffer)
     func track(_ track: RTCTrack, didOutput buffer: AVAudioCompressedBuffer, when: AVAudioTime)
 }
 
 public final class RTCTrack: RTCChannel {
-    let id: Int32
-    weak var delegate: (any RTCTrackDelegate)?
-
-    var isOpen: Bool = false {
-        didSet {
-            if isOpen {
-                do {
-                    packetizer = try makePacketizer()
-                } catch {
-                    logger.warn(error)
-                }
-            }
-            delegate?.track(self, didSetOpen: isOpen)
-        }
+    public enum ReadyState {
+        case connecting
+        case open
+        case closing
+        case closed
     }
 
-    var isClosed: Bool = true
+    let id: Int32
+    weak var delegate: (any RTCTrackDelegate)?
 
     var mid: String {
         do {
@@ -61,6 +53,26 @@ public final class RTCTrack: RTCChannel {
         }
     }
 
+    private(set) var readyState: ReadyState = .connecting {
+        didSet {
+            switch readyState {
+            case .connecting:
+                break
+            case .open:
+                do {
+                    packetizer = try makePacketizer()
+                } catch {
+                    logger.warn(error)
+                }
+            case .closing:
+                break
+            case .closed:
+                break
+            }
+            delegate?.track(self, readyStateChanged: readyState)
+        }
+    }
+
     private var packetizer: (any RTPPacketizer)?
 
     init(id: Int32) {
@@ -68,15 +80,15 @@ public final class RTCTrack: RTCChannel {
         rtcSetUserPointer(id, Unmanaged.passUnretained(self).toOpaque())
         rtcSetOpenCallback(id) { _, pointer in
             guard let pointer else { return }
-            Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().isOpen = true
+            Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().readyState = .open
         }
         rtcSetClosedCallback(id) { _, pointer in
             guard let pointer else { return }
-            Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().isClosed = true
+            Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().readyState = .closed
         }
         rtcSetMessageCallback(id) { _, bytes, size, pointer in
             guard let bytes, let pointer else { return }
-            if 0 < size {
+            if 0 <= size {
                 let data = Data(bytes: bytes, count: Int(size))
                 Unmanaged<RTCTrack>.fromOpaque(pointer).takeUnretainedValue().didReceiveMessage(data)
             }

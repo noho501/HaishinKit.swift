@@ -120,7 +120,7 @@ extension HTTPSession: RTCPeerConnectionDelegate {
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceGatheringChanged gatheringState: RTCGatheringState) {
     }
 
-    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state:  RTCPeerConnection.ConnectionState) {
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, iceConnectionChanged state: RTCPeerConnection.ConnectionState) {
         Task {
             if state == .connected {
                 if await mode == .publish {
