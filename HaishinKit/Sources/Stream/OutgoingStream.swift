@@ -43,14 +43,11 @@ package final class OutgoingStream {
 
     /// The asynchronous sequence for video input buffer.
     package var videoInputStream: AsyncStream<CMSampleBuffer> {
-        if 0 < videoInputBufferCounts {
-            return AsyncStream(CMSampleBuffer.self, bufferingPolicy: .bufferingNewest(videoInputBufferCounts)) { continuation in
-                self.videoInputContinuation = continuation
-            }
-        } else {
-            return AsyncStream { continuation in
-                self.videoInputContinuation = continuation
-            }
+        // Use intelligent default buffer: 6 frames for 60fps = 100ms buffer
+        // This prevents frame drops while keeping latency acceptable
+        let bufferSize = max(videoInputBufferCounts, 6)
+        return AsyncStream(CMSampleBuffer.self, bufferingPolicy: .bufferingNewest(bufferSize)) { continuation in
+            self.videoInputContinuation = continuation
         }
     }
 
@@ -77,7 +74,12 @@ package final class OutgoingStream {
             audioCodec.append(sampleBuffer)
         case .video:
             videoInputFormat = sampleBuffer.formatDescription
-            videoInputContinuation?.yield(sampleBuffer)
+            if let continuation = videoInputContinuation {
+                print("📥 OutgoingStream.append(video) - yielding to videoInputContinuation")
+                continuation.yield(sampleBuffer)
+            } else {
+                print("⚠️ OutgoingStream.append(video) - NO videoInputContinuation! Stream not started properly")
+            }
         default:
             break
         }

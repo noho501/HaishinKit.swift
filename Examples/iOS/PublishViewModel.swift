@@ -182,7 +182,9 @@ final class PublishViewModel: ObservableObject {
         }
         do {
             if let session {
-                try await session.stream.setVideoSettings(preference.makeVideoCodecSettings(session.stream.videoSettings))
+                // ✅ OPTIMIZATION: Use Full HD 60fps Balanced preset for smooth streaming
+                let optimizedSettings = VideoCodecSettings.fullHD60fpsBalanced
+                try await session.stream.setVideoSettings(optimizedSettings)
             }
         } catch {
             self.error = error
@@ -216,11 +218,8 @@ final class PublishViewModel: ObservableObject {
             guard let videoScreenObject else {
                 return
             }
-            if await preference.isGPURendererEnabled {
-                await mixer.screen.isGPURendererEnabled = true
-            } else {
-                await mixer.screen.isGPURendererEnabled = false
-            }
+            // ✅ NOTE: isGPURendererEnabled is deprecated, removed
+            // Using WebRTC pattern for smooth non-blocking rendering
             videoScreenObject.cornerRadius = 16.0
             videoScreenObject.track = 1
             videoScreenObject.horizontalAlignment = .right

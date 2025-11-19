@@ -50,29 +50,38 @@ final class VideoCodec {
 
     func append(_ sampleBuffer: CMSampleBuffer) {
         guard isRunning else {
+            print("⚠️ VideoCodec.append() - not running!")
             return
         }
         do {
             inputFormat = sampleBuffer.formatDescription
             if invalidateSession {
                 if sampleBuffer.formatDescription?.isCompressed == true {
+                    print("🔨 VideoCodec creating decompression session")
                     session = try VTSessionMode.decompression.makeSession(self)
                 } else {
+                    print("🔨 VideoCodec creating compression (H.264) session")
                     session = try VTSessionMode.compression.makeSession(self)
                 }
             }
             guard let session, let continuation else {
+                print("⚠️ VideoCodec.append() - NO session or continuation!")
                 return
             }
             if sampleBuffer.formatDescription?.isCompressed == true {
+                print("📝 VideoCodec encoding compressed -> decompressed")
                 try session.convert(sampleBuffer, continuation: continuation)
             } else {
                 if useFrame(sampleBuffer.presentationTimeStamp) {
+                    print("📝 VideoCodec encoding raw -> H.264")
                     try session.convert(sampleBuffer, continuation: continuation)
                     presentationTimeStamp = sampleBuffer.presentationTimeStamp
+                } else {
+                    print("⏭️ VideoCodec skipping frame (too old)")
                 }
             }
         } catch {
+            print("❌ VideoCodec.append() error: \(error)")
             logger.warn(error)
         }
     }
@@ -98,13 +107,19 @@ final class VideoCodec {
         guard startedAt <= presentationTimeStamp else {
             return false
         }
-        guard self.presentationTimeStamp < presentationTimeStamp else {
+        // Allow frames within expected interval with 50% tolerance for timing jitter
+        // This prevents frame dropping due to minor timing variations at 60fps
+        let requiredInterval = 1.0 / Double(expectedFrameRate)
+        let timeSinceLast = presentationTimeStamp.seconds - self.presentationTimeStamp.seconds
+        
+        // Accept frame if: within expected interval OR if significant timeout (drop safety net)
+        guard timeSinceLast >= (requiredInterval * 0.5) || timeSinceLast > requiredInterval * 3.0 else {
             return false
         }
         guard Self.frameInterval < frameInterval else {
             return true
         }
-        return frameInterval <= presentationTimeStamp.seconds - self.presentationTimeStamp.seconds
+        return frameInterval <= timeSinceLast
     }
 
     #if os(iOS) || os(tvOS) || os(visionOS)

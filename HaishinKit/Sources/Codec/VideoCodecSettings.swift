@@ -14,6 +14,39 @@ public struct VideoCodecSettings: Codable, Sendable {
 
     /// The defulat value.
     public static let `default` = VideoCodecSettings()
+    
+    /// High quality Full HD 60fps preset - 5 Mbps recommended bitrate
+    public static let fullHD60fps = VideoCodecSettings(
+        videoSize: CGSize(width: 1920, height: 1080),
+        bitRate: 5_000_000,
+        profileLevel: kVTProfileLevel_H264_Main_5_1 as String,
+        bitRateMode: .average,
+        maxKeyFrameIntervalDuration: 2,
+        isLowLatencyRateControlEnabled: true,
+        isHardwareAcceleratedEnabled: true
+    )
+    
+    /// Balanced Full HD 60fps preset - 3.5 Mbps for good balance of quality and bandwidth
+    public static let fullHD60fpsBalanced = VideoCodecSettings(
+        videoSize: CGSize(width: 1920, height: 1080),
+        bitRate: 3_500_000,
+        profileLevel: kVTProfileLevel_H264_Main_5_1 as String,
+        bitRateMode: .average,
+        maxKeyFrameIntervalDuration: 2,
+        isLowLatencyRateControlEnabled: true,
+        isHardwareAcceleratedEnabled: true
+    )
+    
+    /// Performance Full HD 60fps preset - 2.5 Mbps minimum for streaming
+    public static let fullHD60fpsPerformance = VideoCodecSettings(
+        videoSize: CGSize(width: 1920, height: 1080),
+        bitRate: 2_500_000,
+        profileLevel: kVTProfileLevel_H264_High_5_1 as String,
+        bitRateMode: .average,
+        maxKeyFrameIntervalDuration: 3,
+        isLowLatencyRateControlEnabled: true,
+        isHardwareAcceleratedEnabled: true
+    )
 
     /// A bitRate mode that affectes how to encode the video source.
     public struct BitRateMode: Sendable, CustomStringConvertible, Codable, Hashable, Equatable {

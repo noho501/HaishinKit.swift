@@ -399,9 +399,12 @@ public actor RTMPStream {
                 }
             }
             Task {
+                print("🔄 RTMPStream videoInputStream loop started")
                 for await video in outgoing.videoInputStream {
+                    print("🔄 RTMPStream videoInputStream - received raw video, calling outgoing.append()")
                     outgoing.append(video: video)
                 }
+                print("🔄 RTMPStream videoInputStream loop ended")
             }
             return response
         } catch {
@@ -724,6 +727,7 @@ extension RTMPStream: _Stream {
         switch sampleBuffer.formatDescription?.mediaType {
         case .video:
             if sampleBuffer.formatDescription?.isCompressed == true {
+                print("📤 RTMPStream.append(video) - COMPRESSED H.264, sending to RTMP server")
                 do {
                     let decodeTimeStamp = sampleBuffer.decodeTimeStamp.isValid ? sampleBuffer.decodeTimeStamp : sampleBuffer.presentationTimeStamp
                     let timedelta = try videoTimestamp.update(decodeTimeStamp)
@@ -737,6 +741,7 @@ extension RTMPStream: _Stream {
                     logger.warn(error)
                 }
             } else {
+                print("📥 RTMPStream.append(video) - RAW UNCOMPRESSED, queuing for encoding")
                 outgoing.append(sampleBuffer)
                 if sampleBuffer.formatDescription?.isCompressed == false {
                     outputs.forEach {
@@ -803,6 +808,10 @@ extension RTMPStream: MediaMixerOutput {
     }
 
     nonisolated public func mixer(_ mixer: MediaMixer, didOutput sampleBuffer: CMSampleBuffer) {
+        let isCompressed = sampleBuffer.formatDescription?.isCompressed ?? false
+        let width = sampleBuffer.formatDescription?.dimensions.width ?? 0
+        let height = sampleBuffer.formatDescription?.dimensions.height ?? 0
+        print("🎥 RTMPStream.mixer(didOutput) - \(isCompressed ? "COMPRESSED" : "RAW") \(width)x\(height)")
         Task { await append(sampleBuffer) }
     }
 

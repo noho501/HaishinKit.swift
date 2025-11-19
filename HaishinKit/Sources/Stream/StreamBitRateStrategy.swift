@@ -20,6 +20,7 @@ public final actor StreamVideoAdaptiveBitRateStrategy: StreamBitRateStrategy {
     public let mamimumAudioBitRate: Int = 0
     private var sufficientBWCounts: Int = 0
     private var zeroBytesOutPerSecondCounts: Int = 0
+    private var lastBitRateAdjustment: Date = Date(timeIntervalSince1970: 0)
 
     /// Creates a new instance.
     public init(mamimumVideoBitrate: Int) {
@@ -45,20 +46,39 @@ public final actor StreamVideoAdaptiveBitRateStrategy: StreamBitRateStrategy {
             sufficientBWCounts = 0
             var videoSettings = await stream.videoSettings
             let audioSettings = await stream.audioSettings
+            
+            // Don't adjust too frequently - wait at least 2 seconds between adjustments
+            guard Date().timeIntervalSince(lastBitRateAdjustment) > 2.0 else {
+                return
+            }
+            lastBitRateAdjustment = Date()
+            
             if 0 < report.currentBytesOutPerSecond {
-                let bitRate = Int(report.currentBytesOutPerSecond * 8) / (zeroBytesOutPerSecondCounts + 1)
-                videoSettings.bitRate = max(bitRate - audioSettings.bitRate, mamimumVideoBitRate / 10)
+                // Reduce bitrate gradually (10% reduction) instead of dropping frames
+                let currentBitrate = Int(report.currentBytesOutPerSecond * 8)
+                let audioBitrate = audioSettings.bitRate
+                let videoBitrate = videoSettings.bitRate
+                
+                // Only reduce if above minimum
+                if videoBitrate > mamimumVideoBitRate / 4 {
+                    let reduction = videoBitrate / 10  // 10% reduction
+                    videoSettings.bitRate = max(
+                        videoBitrate - reduction,
+                        max(currentBitrate - audioBitrate, mamimumVideoBitRate / 4)
+                    )
+                }
+                
+                // Keep frame rate at 60fps, reduce quality
                 videoSettings.frameInterval = 0.0
                 sufficientBWCounts = 0
                 zeroBytesOutPerSecondCounts = 0
             } else {
-                switch zeroBytesOutPerSecondCounts {
-                case 2:
-                    videoSettings.frameInterval = VideoCodecSettings.frameInterval10
-                case 4:
-                    videoSettings.frameInterval = VideoCodecSettings.frameInterval05
-                default:
-                    break
+                // Only reduce FPS if bandwidth completely unavailable (after 5+ seconds)
+                if zeroBytesOutPerSecondCounts > 5 {
+                    // Gradual FPS reduction: 60 → 48 → 36 → 24fps
+                    let currentFPS = 1.0 / max(0.001, 1.0 - videoSettings.frameInterval)
+                    let newFPS = max(24.0, currentFPS - 12.0)
+                    videoSettings.frameInterval = 1.0 - (1.0 / newFPS)
                 }
                 try? await stream.setVideoSettings(videoSettings)
                 zeroBytesOutPerSecondCounts += 1
@@ -67,6 +87,7 @@ public final actor StreamVideoAdaptiveBitRateStrategy: StreamBitRateStrategy {
             var videoSettings = await stream.videoSettings
             zeroBytesOutPerSecondCounts = 0
             videoSettings.bitRate = mamimumVideoBitRate
+            videoSettings.frameInterval = 0.0
             try? await stream.setVideoSettings(videoSettings)
         }
     }

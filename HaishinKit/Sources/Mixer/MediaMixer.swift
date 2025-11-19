@@ -7,7 +7,8 @@ import UIKit
 
 /// An actor that mixies audio and video for streaming.
 public final actor MediaMixer {
-    static let defaultFrameRate: Float64 = 30
+    // 🎯 OPTIMIZATION: Default to 60fps for smooth Full HD streaming (was 30fps)
+    static let defaultFrameRate: Float64 = 60
 
     /// The error domain codes.
     public enum Error: Swift.Error {
@@ -352,8 +353,10 @@ public final actor MediaMixer {
     /// Adds an output observer.
     public func addOutput(_ output: some MediaMixerOutput) {
         guard !outputs.contains(where: { $0 === output }) else {
+            print("⚠️ MediaMixer.addOutput() - already added: \(type(of: output))")
             return
         }
+        print("✅ MediaMixer.addOutput() - registered \(type(of: output)) (total outputs: \(outputs.count + 1))")
         outputs.append(output)
     }
 
@@ -377,14 +380,30 @@ public final actor MediaMixer {
             Task { @ScreenActor in
                 displayLink.preferredFramesPerSecond = await Int(frameRate)
                 displayLink.startRunning()
-                for await updateFrame in displayLink.updateFrames {
-                    guard let buffer = screen.makeSampleBuffer(updateFrame) else {
+            }
+            // ✅ WEBRTC PATTERN: Spawn rendering loop as separate Task (non-blocking)
+            // Rendering runs in background, doesn't block mode setting
+            Task { @ScreenActor [weak self] in
+                guard let self = self else { return }
+                print("🔄 MediaMixer offscreen rendering loop started")
+                var frameCount = 0
+                for await updateFrame in self.displayLink.updateFrames {
+                    frameCount += 1
+                    if frameCount % 60 == 0 {  // Log every 60 frames (~1 second at 60fps)
+                        print("🎬 MediaMixer rendering frame #\(frameCount)")
+                    }
+                    guard let buffer = self.screen.makeSampleBuffer(updateFrame) else {
                         continue
                     }
+                    let outputCount = await self.outputs.count
                     for output in await self.outputs where await output.videoTrackId == UInt8.max {
+                        if frameCount <= 3 || frameCount % 60 == 0 {  // Log first 3 frames + every 60th
+                            print("📤 MediaMixer sending composite to \(type(of: output)) (output 1 of \(outputCount))")
+                        }
                         output.mixer(self, didOutput: buffer)
                     }
                 }
+                print("🔄 MediaMixer offscreen rendering loop ENDED")
             }
         }
     }
