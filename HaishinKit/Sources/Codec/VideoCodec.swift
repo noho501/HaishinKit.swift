@@ -50,29 +50,38 @@ final class VideoCodec {
 
     func append(_ sampleBuffer: CMSampleBuffer) {
         guard isRunning else {
+            print("⚠️ VideoCodec.append() - not running!")
             return
         }
         do {
             inputFormat = sampleBuffer.formatDescription
             if invalidateSession {
                 if sampleBuffer.formatDescription?.isCompressed == true {
+                    print("🔨 VideoCodec creating decompression session")
                     session = try VTSessionMode.decompression.makeSession(self)
                 } else {
+                    print("🔨 VideoCodec creating compression (H.264) session")
                     session = try VTSessionMode.compression.makeSession(self)
                 }
             }
             guard let session, let continuation else {
+                print("⚠️ VideoCodec.append() - NO session or continuation!")
                 return
             }
             if sampleBuffer.formatDescription?.isCompressed == true {
+                print("📝 VideoCodec encoding compressed -> decompressed")
                 try session.convert(sampleBuffer, continuation: continuation)
             } else {
                 if useFrame(sampleBuffer.presentationTimeStamp) {
+                    print("📝 VideoCodec encoding raw -> H.264")
                     try session.convert(sampleBuffer, continuation: continuation)
                     presentationTimeStamp = sampleBuffer.presentationTimeStamp
+                } else {
+                    print("⏭️ VideoCodec skipping frame (too old)")
                 }
             }
         } catch {
+            print("❌ VideoCodec.append() error: \(error)")
             logger.warn(error)
         }
     }

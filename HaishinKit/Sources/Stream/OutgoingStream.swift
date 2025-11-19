@@ -74,7 +74,12 @@ package final class OutgoingStream {
             audioCodec.append(sampleBuffer)
         case .video:
             videoInputFormat = sampleBuffer.formatDescription
-            videoInputContinuation?.yield(sampleBuffer)
+            if let continuation = videoInputContinuation {
+                print("📥 OutgoingStream.append(video) - yielding to videoInputContinuation")
+                continuation.yield(sampleBuffer)
+            } else {
+                print("⚠️ OutgoingStream.append(video) - NO videoInputContinuation! Stream not started properly")
+            }
         default:
             break
         }
