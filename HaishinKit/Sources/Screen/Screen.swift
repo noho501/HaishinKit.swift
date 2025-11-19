@@ -219,7 +219,7 @@ public final class Screen: ScreenObjectContainerConvertible {
         
         if frameElapsedMs > maxFrameTimeMs {
             let avgFrameTime = frameTimings.reduce(0, +) / TimeInterval(frameTimings.count)
-            logger.warn("🔴 Frame render stall: \(String(format: "%.2f", frameElapsedMs))ms (budget: 16.67ms, avg: \(String(format: "%.2f", avgFrameTime))ms)")
+//            logger.warn("🔴 Frame render stall: \(String(format: "%.2f", frameElapsedMs))ms (budget: 16.67ms, avg: \(String(format: "%.2f", avgFrameTime))ms)")
         }
         
         return sampleBuffer
