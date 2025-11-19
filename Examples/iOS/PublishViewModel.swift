@@ -182,7 +182,9 @@ final class PublishViewModel: ObservableObject {
         }
         do {
             if let session {
-                try await session.stream.setVideoSettings(preference.makeVideoCodecSettings(session.stream.videoSettings))
+                // ✅ OPTIMIZATION: Use Full HD 60fps Balanced preset for smooth streaming
+                let optimizedSettings = VideoCodecSettings.fullHD60fpsBalanced
+                try await session.stream.setVideoSettings(optimizedSettings)
             }
         } catch {
             self.error = error

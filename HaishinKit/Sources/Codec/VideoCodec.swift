@@ -98,13 +98,19 @@ final class VideoCodec {
         guard startedAt <= presentationTimeStamp else {
             return false
         }
-        guard self.presentationTimeStamp < presentationTimeStamp else {
+        // Allow frames within expected interval with 50% tolerance for timing jitter
+        // This prevents frame dropping due to minor timing variations at 60fps
+        let requiredInterval = 1.0 / Double(expectedFrameRate)
+        let timeSinceLast = presentationTimeStamp.seconds - self.presentationTimeStamp.seconds
+        
+        // Accept frame if: within expected interval OR if significant timeout (drop safety net)
+        guard timeSinceLast >= (requiredInterval * 0.5) || timeSinceLast > requiredInterval * 3.0 else {
             return false
         }
         guard Self.frameInterval < frameInterval else {
             return true
         }
-        return frameInterval <= presentationTimeStamp.seconds - self.presentationTimeStamp.seconds
+        return frameInterval <= timeSinceLast
     }
 
     #if os(iOS) || os(tvOS) || os(visionOS)
