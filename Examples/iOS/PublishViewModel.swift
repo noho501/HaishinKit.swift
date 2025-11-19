@@ -218,11 +218,8 @@ final class PublishViewModel: ObservableObject {
             guard let videoScreenObject else {
                 return
             }
-            if await preference.isGPURendererEnabled {
-                await mixer.screen.isGPURendererEnabled = true
-            } else {
-                await mixer.screen.isGPURendererEnabled = false
-            }
+            // ✅ NOTE: isGPURendererEnabled is deprecated, removed
+            // Using WebRTC pattern for smooth non-blocking rendering
             videoScreenObject.cornerRadius = 16.0
             videoScreenObject.track = 1
             videoScreenObject.horizontalAlignment = .right
