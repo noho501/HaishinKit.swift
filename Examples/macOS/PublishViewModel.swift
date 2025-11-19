@@ -96,7 +96,7 @@ final class PublishViewModel: ObservableObject {
         Task {
             // SetUp a mixer.
             var videoMixerSettings = await mixer.videoMixerSettings
-            videoMixerSettings.mode = .offscreen
+            videoMixerSettings.mode = .passthrough
             await mixer.setVideoMixerSettings(videoMixerSettings)
             // Attach devices
             let back = AVCaptureDevice.default(for: .video)
