@@ -15,6 +15,27 @@ public struct VideoCodecSettings: Codable, Sendable {
     /// The defulat value.
     public static let `default` = VideoCodecSettings()
 
+    /// Full HD 60fps High Quality (5 Mbps)
+    public static let fullHD60fps = VideoCodecSettings(
+        videoSize: CGSize(width: 1920, height: 1080),
+        bitRate: 5_000_000,
+        profileLevel: kVTProfileLevel_H264_Main_5_1 as String
+    )
+
+    /// Full HD 60fps Balanced (3.5 Mbps) - Recommended
+    public static let fullHD60fpsBalanced = VideoCodecSettings(
+        videoSize: CGSize(width: 1920, height: 1080),
+        bitRate: 3_500_000,
+        profileLevel: kVTProfileLevel_H264_Main_5_1 as String
+    )
+
+    /// Full HD 60fps Performance (2.5 Mbps)
+    public static let fullHD60fpsPerformance = VideoCodecSettings(
+        videoSize: CGSize(width: 1920, height: 1080),
+        bitRate: 2_500_000,
+        profileLevel: kVTProfileLevel_H264_Main_5_1 as String
+    )
+
     /// A bitRate mode that affectes how to encode the video source.
     public struct BitRateMode: Sendable, CustomStringConvertible, Codable, Hashable, Equatable {
         public static func == (lhs: VideoCodecSettings.BitRateMode, rhs: VideoCodecSettings.BitRateMode) -> Bool {
@@ -120,9 +141,9 @@ public struct VideoCodecSettings: Codable, Sendable {
 
     /// Creates a new VideoCodecSettings instance.
     public init(
-        videoSize: CGSize = .init(width: 854, height: 480),
-        bitRate: Int = 640 * 1000,
-        profileLevel: String = kVTProfileLevel_H264_Baseline_3_1 as String,
+        videoSize: CGSize = .init(width: 1920, height: 1080),
+        bitRate: Int = 3_500_000,
+        profileLevel: String = kVTProfileLevel_H264_Main_5_1 as String,
         scalingMode: ScalingMode = .trim,
         bitRateMode: BitRateMode = .average,
         maxKeyFrameIntervalDuration: Int32 = 2,

@@ -35,7 +35,10 @@ final class PreferenceViewModel: ObservableObject {
     }
 
     func makeVideoCodecSettings(_ settings: VideoCodecSettings) -> VideoCodecSettings {
-        var newSettings = settings
+        // Use Full HD 60fps balanced preset (3.5 Mbps) for best quality
+        // Can change to fullHD60fps (5 Mbps) for higher quality on powerful devices
+        // Or fullHD60fpsPerformance (2.5 Mbps) for lower bitrate
+        var newSettings = VideoCodecSettings.fullHD60fpsBalanced
         newSettings.bitRateMode = bitRateMode
         newSettings.isLowLatencyRateControlEnabled = isLowLatencyRateControlEnabled
         return newSettings

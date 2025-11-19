@@ -7,7 +7,7 @@ import UIKit
 
 /// An actor that mixies audio and video for streaming.
 public final actor MediaMixer {
-    static let defaultFrameRate: Float64 = 30
+    static let defaultFrameRate: Float64 = 60
 
     /// The error domain codes.
     public enum Error: Swift.Error {
@@ -377,8 +377,11 @@ public final actor MediaMixer {
             Task { @ScreenActor in
                 displayLink.preferredFramesPerSecond = await Int(frameRate)
                 displayLink.startRunning()
-                for await updateFrame in displayLink.updateFrames {
-                    guard let buffer = screen.makeSampleBuffer(updateFrame) else {
+            }
+            Task { @ScreenActor [weak self] in
+                guard let self = self else { return }
+                for await updateFrame in self.displayLink.updateFrames {
+                    guard let buffer = self.screen.makeSampleBuffer(updateFrame) else {
                         continue
                     }
                     for output in await self.outputs where await output.videoTrackId == UInt8.max {
