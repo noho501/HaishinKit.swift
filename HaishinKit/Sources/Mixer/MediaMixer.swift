@@ -377,8 +377,13 @@ public final actor MediaMixer {
             Task { @ScreenActor in
                 displayLink.preferredFramesPerSecond = await Int(frameRate)
                 displayLink.startRunning()
-                for await updateFrame in displayLink.updateFrames {
-                    guard let buffer = screen.makeSampleBuffer(updateFrame) else {
+            }
+            // ✅ WEBRTC PATTERN: Spawn rendering loop as separate Task (non-blocking)
+            // Rendering runs in background, doesn't block mode setting
+            Task { @ScreenActor [weak self] in
+                guard let self = self else { return }
+                for await updateFrame in self.displayLink.updateFrames {
+                    guard let buffer = self.screen.makeSampleBuffer(updateFrame) else {
                         continue
                     }
                     for output in await self.outputs where await output.videoTrackId == UInt8.max {

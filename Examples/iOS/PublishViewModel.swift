@@ -201,7 +201,7 @@ final class PublishViewModel: ObservableObject {
             // SetUp a mixer.
             await mixer.setMonitoringEnabled(DeviceUtil.isHeadphoneConnected())
             var videoMixerSettings = await mixer.videoMixerSettings
-            videoMixerSettings.mode = .passthrough
+            videoMixerSettings.mode = .offscreen
             await mixer.setVideoMixerSettings(videoMixerSettings)
             // Attach devices
             let back = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: currentPosition)
