@@ -107,6 +107,8 @@ public final class Screen: ScreenObjectContainerConvertible {
         }
     }
     private var presentationTimeStamp: CMTime = .zero
+    private var frameTimings: [TimeInterval] = []  // For frame time diagnostics
+    private let maxFrameTimeMs: TimeInterval = 16.67  // 60fps frame budget in ms
 
     /// Creates a screen object.
     public init() {
@@ -191,6 +193,9 @@ public final class Screen: ScreenObjectContainerConvertible {
     }
 
     func render(_ sampleBuffer: CMSampleBuffer) -> CMSampleBuffer {
+        // 🔍 PERFORMANCE: Measure frame render time to detect stalls
+        let frameStartTime = CACurrentMediaTime()
+        
         try? sampleBuffer.imageBuffer?.lockBaseAddress(Self.lockFlags)
         defer {
             try? sampleBuffer.imageBuffer?.unlockBaseAddress(Self.lockFlags)
@@ -204,6 +209,19 @@ public final class Screen: ScreenObjectContainerConvertible {
         root.layout(renderer)
         root.draw(renderer)
         renderer.render()
+        
+        // 🔍 Log frame time if exceeds budget (16.67ms @ 60fps)
+        let frameElapsedMs = (CACurrentMediaTime() - frameStartTime) * 1000
+        frameTimings.append(frameElapsedMs)
+        if frameTimings.count > 60 {
+            frameTimings.removeFirst()
+        }
+        
+        if frameElapsedMs > maxFrameTimeMs {
+            let avgFrameTime = frameTimings.reduce(0, +) / TimeInterval(frameTimings.count)
+            logger.warn("🔴 Frame render stall: \(String(format: "%.2f", frameElapsedMs))ms (budget: 16.67ms, avg: \(String(format: "%.2f", avgFrameTime))ms)")
+        }
+        
         return sampleBuffer
     }
 
