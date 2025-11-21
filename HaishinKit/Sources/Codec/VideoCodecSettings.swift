@@ -15,6 +15,9 @@ public struct VideoCodecSettings: Codable, Sendable {
     /// The defulat value.
     public static let `default` = VideoCodecSettings()
 
+    /// The number of default expected frameRate.
+    public static let defaultExpectedFrameRate: Float64 = 30
+
     /// A bitRate mode that affectes how to encode the video source.
     public struct BitRateMode: Sendable, CustomStringConvertible, Codable, Hashable, Equatable {
         public static func == (lhs: VideoCodecSettings.BitRateMode, rhs: VideoCodecSettings.BitRateMode) -> Bool {
@@ -120,9 +123,9 @@ public struct VideoCodecSettings: Codable, Sendable {
     public var isHardwareAcceleratedEnabled: Bool
     /// Specifies the video frame interval.
     public var frameInterval: Double = 0.0
-    /// Specifies the default frame rate for video encoding.
-    public var defaultFrameRate: Float64
-    
+    /// Specifies the expected frame rate for an encoder.
+    public var expectedFrameRate: Float64
+
     package var format: Format = .h264
 
     /// Creates a new VideoCodecSettings instance.
@@ -139,7 +142,7 @@ public struct VideoCodecSettings: Codable, Sendable {
         dataRateLimits: [Double]? = [0.0, 0.0],
         isLowLatencyRateControlEnabled: Bool = false,
         isHardwareAcceleratedEnabled: Bool = true,
-        defaultFrameRate: Float64 = 30
+        expectedFrameRate: Float64 = VideoCodecSettings.defaultExpectedFrameRate
     ) {
         self.videoSize = videoSize
         self.bitRate = bitRate
@@ -151,7 +154,7 @@ public struct VideoCodecSettings: Codable, Sendable {
         self.dataRateLimits = dataRateLimits
         self.isLowLatencyRateControlEnabled = isLowLatencyRateControlEnabled
         self.isHardwareAcceleratedEnabled = isHardwareAcceleratedEnabled
-        self.defaultFrameRate = defaultFrameRate
+        self.expectedFrameRate = expectedFrameRate
         if profileLevel.contains("HEVC") {
             self.format = .hevc
         }
@@ -167,7 +170,7 @@ public struct VideoCodecSettings: Codable, Sendable {
                     dataRateLimits == rhs.dataRateLimits &&
                     isLowLatencyRateControlEnabled == rhs.isLowLatencyRateControlEnabled &&
                     isHardwareAcceleratedEnabled == rhs.isHardwareAcceleratedEnabled &&
-                    defaultFrameRate == rhs.defaultFrameRate
+                    expectedFrameRate == rhs.expectedFrameRate
         )
     }
 
@@ -190,7 +193,7 @@ public struct VideoCodecSettings: Codable, Sendable {
             .init(key: .profileLevel, value: profileLevel as NSObject),
             .init(key: bitRateMode.key, value: NSNumber(value: bitRate)),
             // It seemes that VT supports the range 0 to 30.
-            .init(key: .expectedFrameRate, value: NSNumber(value: (defaultFrameRate <= 30) ? defaultFrameRate : 0)),
+            .init(key: .expectedFrameRate, value: NSNumber(value: (expectedFrameRate <= 30) ? expectedFrameRate : 0)),
             .init(key: .maxKeyFrameIntervalDuration, value: NSNumber(value: maxKeyFrameIntervalDuration)),
             .init(key: .allowFrameReordering, value: (allowFrameReordering ?? !isBaseline) as NSObject),
             .init(key: .pixelTransferProperties, value: [
