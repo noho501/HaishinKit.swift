@@ -268,6 +268,7 @@ public final actor MediaMixer {
     /// }
     /// ```
     public func setFrameRate(_ frameRate: Float64) throws {
+        self.frameRate = frameRate
         switch videoMixerSettings.mode {
         case .passthrough:
             if #available(tvOS 17.0, *) {
@@ -366,7 +367,7 @@ public final actor MediaMixer {
             outputs.remove(at: index)
         }
     }
-
+    
     private func setVideoRenderingMode(_ mode: VideoMixerSettings.Mode) {
         guard isRunning else {
             return
