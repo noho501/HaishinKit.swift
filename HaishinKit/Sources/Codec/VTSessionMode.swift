@@ -24,7 +24,7 @@ enum VTSessionMode {
             guard status == noErr, let session else {
                 throw VTSessionError.failedToCreate(status: status)
             }
-            status = session.setOptions(videoCodec.settings.options(videoCodec))
+            status = session.setOptions(videoCodec.settings.makeOptions())
             guard status == noErr else {
                 throw VTSessionError.failedToPrepare(status: status)
             }

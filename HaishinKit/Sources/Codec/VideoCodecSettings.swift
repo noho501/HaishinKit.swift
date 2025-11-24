@@ -186,7 +186,7 @@ public struct VideoCodecSettings: Codable, Sendable {
     }
 
     // https://developer.apple.com/documentation/videotoolbox/encoding_video_for_live_streaming
-    func options(_ codec: VideoCodec) -> Set<VTSessionOption> {
+    func makeOptions() -> Set<VTSessionOption> {
         let isBaseline = profileLevel.contains("Baseline")
         var options = Set<VTSessionOption>([
             .init(key: .realTime, value: kCFBooleanTrue),
@@ -222,7 +222,7 @@ public struct VideoCodecSettings: Codable, Sendable {
     }
 
     func makeEncoderSpecification() -> CFDictionary? {
-        if isLowLatencyRateControlEnabled, #available(iOS 14.5, macCatalyst 14.5, macOS 11.3, tvOS 14.5, visionOS 1.0, *) {
+        if isLowLatencyRateControlEnabled {
             return [kVTVideoEncoderSpecification_EnableLowLatencyRateControl: true as CFBoolean] as CFDictionary
         }
         return nil
