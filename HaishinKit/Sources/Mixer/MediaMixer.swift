@@ -7,7 +7,7 @@ import UIKit
 
 /// An actor that mixies audio and video for streaming.
 public final actor MediaMixer {
-    static let defaultFrameRate: Float64 = 30
+    static let defaultFrameRate: Float64 = 60
 
     /// The error domain codes.
     public enum Error: Swift.Error {
@@ -381,7 +381,9 @@ public final actor MediaMixer {
                     guard let buffer = screen.makeSampleBuffer(updateFrame) else {
                         continue
                     }
-                    for output in await self.outputs where await output.videoTrackId == UInt8.max {
+                    // Cache outputs list to avoid repeated await calls
+                    let cachedOutputs = await self.outputs
+                    for output in cachedOutputs where await output.videoTrackId == UInt8.max {
                         output.mixer(self, didOutput: buffer)
                     }
                 }
@@ -457,21 +459,24 @@ extension MediaMixer: AsyncRunner {
                         screen.setVideoCaptureLatency(sampleBuffer.presentationTimeStamp)
                     }
                 }
-                for output in outputs where await output.videoTrackId == inputs.0 {
+                let cachedOutputs = outputs
+                for output in cachedOutputs where await output.videoTrackId == inputs.0 {
                     output.mixer(self, didOutput: inputs.1)
                 }
             }
         }
         Task {
             for await video in videoIO.output {
-                for output in outputs where await output.videoTrackId == UInt8.max {
+                let cachedOutputs = outputs
+                for output in cachedOutputs where await output.videoTrackId == UInt8.max {
                     output.mixer(self, didOutput: video)
                 }
             }
         }
         Task {
             for await audio in audioIO.output {
-                for output in outputs where await output.audioTrackId == UInt8.max {
+                let cachedOutputs = outputs
+                for output in cachedOutputs where await output.audioTrackId == UInt8.max {
                     output.mixer(self, didOutput: audio.0, when: audio.1)
                 }
             }

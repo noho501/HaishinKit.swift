@@ -112,18 +112,20 @@ final class PublishViewModel: ObservableObject {
                     try await recorder.startRecording()
                     isRecording = true
                     self.recorder = recorder
+                    // Monitor recorder errors in separate task
+                    Task {
+                        for await error in await recorder.error {
+                            switch error {
+                            case .failedToAppend(let error):
+                                self.error = error
+                            default:
+                                self.error = error
+                            }
+                        }
+                    }
                 } catch {
                     self.error = error
                     logger.warn(error)
-                }
-                for await error in await recorder.error {
-                    switch error {
-                    case .failedToAppend(let error):
-                        self.error = error
-                    default:
-                        self.error = error
-                    }
-                    break
                 }
             }
         }

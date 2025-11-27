@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import Foundation
 
 /// Configuration calback block for a VideoDeviceUnit.
@@ -97,25 +97,29 @@ public final class VideoDeviceUnit: DeviceUnit {
         guard let device else {
             return
         }
-        try device.lockForConfiguration()
-        defer {
-            device.unlockForConfiguration()
-        }
-        if device.activeFormat.isFrameRateSupported(frameRate) {
-            device.activeVideoMinFrameDuration = CMTime(value: 100, timescale: CMTimeScale(100 * frameRate))
-            device.activeVideoMaxFrameDuration = CMTime(value: 100, timescale: CMTimeScale(100 * frameRate))
-        } else {
-            if let format = device.videoFormat(
-                width: device.activeFormat.formatDescription.dimensions.width,
-                height: device.activeFormat.formatDescription.dimensions.height,
-                frameRate: frameRate,
-                isMultiCamSupported: device.activeFormat.isMultiCamSupported
-            ) {
-                device.activeFormat = format
-                device.activeVideoMinFrameDuration = CMTime(value: 100, timescale: CMTimeScale(100 * frameRate))
-                device.activeVideoMaxFrameDuration = CMTime(value: 100, timescale: CMTimeScale(100 * frameRate))
-            } else {
-                throw Error.unsupportedFrameRate
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try device.lockForConfiguration()
+                defer {
+                    device.unlockForConfiguration()
+                }
+                if device.activeFormat.isFrameRateSupported(frameRate) {
+                    device.activeVideoMinFrameDuration = CMTime(value: 100, timescale: CMTimeScale(100 * frameRate))
+                    device.activeVideoMaxFrameDuration = CMTime(value: 100, timescale: CMTimeScale(100 * frameRate))
+                } else {
+                    if let format = device.videoFormat(
+                        width: device.activeFormat.formatDescription.dimensions.width,
+                        height: device.activeFormat.formatDescription.dimensions.height,
+                        frameRate: frameRate,
+                        isMultiCamSupported: device.activeFormat.isMultiCamSupported
+                    ) {
+                        device.activeFormat = format
+                        device.activeVideoMinFrameDuration = CMTime(value: 100, timescale: CMTimeScale(100 * frameRate))
+                        device.activeVideoMaxFrameDuration = CMTime(value: 100, timescale: CMTimeScale(100 * frameRate))
+                    }
+                }
+            } catch {
+                // Handle error silently on background queue
             }
         }
         self.frameRate = frameRate
