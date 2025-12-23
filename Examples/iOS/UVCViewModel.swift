@@ -47,7 +47,9 @@ final class UVCViewModel: ObservableObject {
         ) { notif in
             guard let device = notif.object as? AVCaptureDevice else { return }
             logger.info(device)
-            self.deviceConnected()
+            Task {
+                await self.deviceConnected()
+            }
         }
     }
 
@@ -176,7 +178,7 @@ final class UVCViewModel: ObservableObject {
     func startRunning(_ preference: PreferenceViewModel) {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playAndRecord, mode: .videoRecording, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            try session.setCategory(.playAndRecord, mode: .videoRecording, options: [.defaultToSpeaker, .allowBluetooth])
             try session.setActive(true)
         } catch {
             logger.error(error)
