@@ -5,15 +5,11 @@ import CoreImage.CIFilterBuiltins
 
 final class ScreenRendererByGPU: ScreenRenderer {
     var bounds: CGRect = .init(origin: .zero, size: Screen.size)
+    let imageOptions: [CIImageOption: Any]?
     var synchronizationClock: CMClock?
     var presentationTimeStamp: CMTime = .zero
 
-    lazy var context = {
-        guard let deive = MTLCreateSystemDefaultDevice() else {
-            return CIContext(options: nil)
-        }
-        return CIContext(mtlDevice: deive)
-    }()
+    let context: CIContext
 
     var backgroundColor = CGColor(red: 0x00, green: 0x00, blue: 0x00, alpha: 0x00) {
         didSet {
@@ -27,8 +23,19 @@ final class ScreenRendererByGPU: ScreenRenderer {
     private var canvas: CIImage = .init()
     private var images: [ScreenObject: CIImage] = [:]
     private var pixelBuffer: CVPixelBuffer?
+    private let dynamicRangeMode: DynamicRangeMode
     private var backgroundCIColor = CIColor()
     private var roundedRectangleFactory = RoundedRectangleFactory()
+
+    init(dynamicRangeMode: DynamicRangeMode) {
+        self.dynamicRangeMode = dynamicRangeMode
+        context = dynamicRangeMode.makeCIContext()
+        if let colorSpace = dynamicRangeMode.colorSpace {
+            imageOptions = [.colorSpace: colorSpace]
+        } else {
+            imageOptions = nil
+        }
+    }
 
     func setTarget(_ pixelBuffer: CVPixelBuffer?) {
         guard let pixelBuffer else {
@@ -71,8 +78,10 @@ final class ScreenRendererByGPU: ScreenRenderer {
     }
 
     func render() {
-        if let pixelBuffer {
-            context.render(canvas, to: pixelBuffer)
+        guard let pixelBuffer else {
+            return
         }
+        context.render(canvas, to: pixelBuffer, bounds: canvas.extent, colorSpace: dynamicRangeMode.colorSpace)
+        dynamicRangeMode.attach(pixelBuffer)
     }
 }

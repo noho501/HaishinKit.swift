@@ -29,6 +29,34 @@ final class PublishViewModel: ObservableObject {
     }
     @Published private(set) var audioSources: [AudioSource] = []
     @Published private(set) var isRecording = false
+    @Published var isHDREnabled = false {
+        didSet {
+            Task {
+                do {
+                    if isHDREnabled {
+                        try await mixer.setDynamicRangeMode(.hdr)
+                    } else {
+                        try await mixer.setDynamicRangeMode(.sdr)
+                    }
+                } catch {
+                    logger.info(error)
+                }
+            }
+        }
+    }
+    @Published private(set) var stats: [Stats] = []
+    @Published var videoBitRates: Double = 100 {
+        didSet {
+            Task {
+                guard let session else {
+                    return
+                }
+                var videoSettings = await session.stream.videoSettings
+                videoSettings.bitRate = Int(videoBitRates * 1000)
+                try await session.stream.setVideoSettings(videoSettings)
+            }
+        }
+    }
     // If you want to use the multi-camera feature, please make create a MediaMixer with a capture mode.
     // let mixer = MediaMixer(captureSesionMode: .multi)
     private(set) var mixer = MediaMixer(captureSessionMode: .multi)
@@ -51,6 +79,7 @@ final class PublishViewModel: ObservableObject {
             guard let session else {
                 return
             }
+            stats.removeAll()
             do {
                 try await session.connect {
                     Task { @MainActor in
@@ -158,6 +187,13 @@ final class PublishViewModel: ObservableObject {
             guard let session else {
                 return
             }
+            let videoSettings = await session.stream.videoSettings
+            videoBitRates = Double(videoSettings.bitRate / 1000)
+            await session.stream.setBitRateStrategy(StatsMonitor({ data in
+                Task { @MainActor in
+                    self.stats.append(data)
+                }
+            }))
             await mixer.addOutput(session.stream)
             tasks.append(Task {
                 for await readyState in await session.readyState {
@@ -191,10 +227,16 @@ final class PublishViewModel: ObservableObject {
 
     func startRunning(_ preference: PreferenceViewModel) {
         Task {
-            await audioSourceService.setUp()
+            let audioCaptureMode = preference.audioCaptureMode
+            await audioSourceService.setUp(preference.audioCaptureMode)
             await mixer.configuration { session in
-                // It is required for the stereo setting.
-                session.automaticallyConfiguresApplicationAudioSession = false
+                switch audioCaptureMode {
+                case .audioEngine:
+                    session.automaticallyConfiguresApplicationAudioSession = true
+                case .audioSource:
+                    // It is required for the stereo setting.
+                    session.automaticallyConfiguresApplicationAudioSession = false
+                }
             }
             // SetUp a mixer.
             await mixer.setMonitoringEnabled(DeviceUtil.isHeadphoneConnected())
@@ -208,6 +250,7 @@ final class PublishViewModel: ObservableObject {
             try? await mixer.attachVideo(front, track: 1) { videoUnit in
                 videoUnit.isVideoMirrored = true
             }
+            await audioSourceService.startRunning()
             await mixer.startRunning()
             await makeSession(preference)
         }
@@ -231,6 +274,11 @@ final class PublishViewModel: ObservableObject {
             try? await mixer.screen.addChild(videoScreenObject)
         }
         Task {
+            for await buffer in await audioSourceService.buffer {
+                await mixer.append(buffer.0, when: buffer.1)
+            }
+        }
+        Task {
             for await sources in await audioSourceService.sourcesUpdates() {
                 audioSources = sources
                 if let first = sources.first, audioSource == .empty {
@@ -242,6 +290,7 @@ final class PublishViewModel: ObservableObject {
 
     func stopRunning() {
         Task {
+            await audioSourceService.stopRunning()
             await mixer.stopRunning()
             try? await mixer.attachAudio(nil)
             try? await mixer.attachVideo(nil, track: 0)
@@ -320,6 +369,10 @@ final class PublishViewModel: ObservableObject {
                 }
                 // Sets to output frameRate.
                 try await mixer.setFrameRate(fps)
+                if var videoSettings = await session?.stream.videoSettings {
+                    videoSettings.expectedFrameRate = fps
+                    try? await session?.stream.setVideoSettings(videoSettings)
+                }
             } catch {
                 logger.error(error)
             }

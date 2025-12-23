@@ -1,6 +1,6 @@
 import Foundation
 
-struct RTCIceCandidate: Sendable {
+public struct RTCIceCandidate: Sendable {
     let candidate: String
     let mid: String
 }

@@ -7,6 +7,8 @@ import Foundation
 public protocol ScreenRenderer: AnyObject {
     /// The CIContext instance.
     var context: CIContext { get }
+    /// The CIImage options.
+    var imageOptions: [CIImageOption: Any]? { get }
     /// Specifies the backgroundColor for output video.
     var backgroundColor: CGColor { get set }
     /// The current screen bounds.
@@ -17,7 +19,6 @@ public protocol ScreenRenderer: AnyObject {
     var synchronizationClock: CMClock? { get set }
     /// Layouts a screen object.
     func layout(_ screenObject: ScreenObject)
-
     /// Draws a sceen object.
     func draw(_ screenObject: ScreenObject)
     /// Sets up the render target.

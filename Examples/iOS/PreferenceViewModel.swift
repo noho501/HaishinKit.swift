@@ -1,3 +1,4 @@
+import Combine
 import HaishinKit
 import SwiftUI
 
@@ -27,10 +28,14 @@ final class PreferenceViewModel: ObservableObject {
     // MARK: - Others
     @Published var viewType: ViewType = .metal
     var isGPURendererEnabled: Bool = true
+    @Published var audioCaptureMode: AudioSourceService.Mode = .audioEngine
 
     init() {
-        if #available(iOS 16.0, *) {
+        if #available(iOS 16.0, tvOS 16.0, *) {
             bitRateModes.append(.constant)
+        }
+        if #available(iOS 26.0, tvOS 26.0, macOS 26.0, *) {
+            bitRateModes.append(.variable)
         }
     }
 

@@ -49,6 +49,12 @@ public final actor MediaMixer {
     /// The capture session mode.
     public let captureSessionMode: CaptureSessionMode
 
+    /// The feature to mix multiple audio tracks. For example, it is possible to mix .appAudio and .micAudio from ReplayKit.
+    public let isMultiTrackAudioMixingEnabled: Bool
+
+    /// The dynamic range mode.
+    public private(set) var dynamicRangeMode: DynamicRangeMode = .sdr
+
     #if os(iOS) || os(tvOS)
     /// The AVCaptureMultiCamSession enabled.
     @available(tvOS 17.0, *)
@@ -61,11 +67,6 @@ public final actor MediaMixer {
     /// The device torch indicating wheter the turn on(TRUE) or not(FALSE).
     public var isTorchEnabled: Bool {
         videoIO.isTorchEnabled
-    }
-
-    /// The feature to mix multiple audio tracks. For example, it is possible to mix .appAudio and .micAudio from ReplayKit.
-    public var isMultiTrackAudioMixingEnabled: Bool {
-        audioIO.isMultiTrackAudioMixingEnabled
     }
 
     /// The sessionPreset for the AVCaptureSession.
@@ -103,10 +104,10 @@ public final actor MediaMixer {
     /// The output frame rate.
     public private(set) var frameRate = MediaMixer.defaultFrameRate
 
-    /// The capture session is in a running state or not.
+    /// The AVCaptureSession is in a running state or not.
     @available(tvOS 17.0, *)
     public var isCapturing: Bool {
-        session.isRunning
+        session.isCapturing
     }
 
     /// The interrupts events is occured or not.
@@ -125,7 +126,8 @@ public final actor MediaMixer {
     private var outputs: [any MediaMixerOutput] = []
     @MainActor
     private var cancellables: Set<AnyCancellable> = []
-    private lazy var audioIO = AudioCaptureUnit(session)
+    private var isInBackground = false
+    private lazy var audioIO = AudioCaptureUnit(session, isMultiTrackAudioMixingEnabled: isMultiTrackAudioMixingEnabled)
     private lazy var videoIO = VideoCaptureUnit(session)
     private lazy var session: (any CaptureSessionConvertible) = captureSessionMode.makeSession()
     @ScreenActor
@@ -141,15 +143,7 @@ public final actor MediaMixer {
         multiTrackAudioMixingEnabled: Bool = false
     ) {
         self.captureSessionMode = captureSessionMode
-        Task {
-            await _init(multiTrackAudioMixingEnabled: multiTrackAudioMixingEnabled)
-        }
-    }
-
-    private func _init(
-        multiTrackAudioMixingEnabled: Bool
-    ) async {
-        audioIO.isMultiTrackAudioMixingEnabled = multiTrackAudioMixingEnabled
+        self.isMultiTrackAudioMixingEnabled = multiTrackAudioMixingEnabled
     }
 
     /// Attaches a video device.
@@ -160,13 +154,9 @@ public final actor MediaMixer {
     /// ```
     @available(tvOS 17.0, *)
     public func attachVideo(_ device: AVCaptureDevice?, track: UInt8 = 0, configuration: VideoDeviceConfigurationBlock? = nil) async throws {
-        let frameRate = self.frameRate
         return try await withCheckedThrowingContinuation { continuation in
             do {
-                try videoIO.attachVideo(track, device: device) { video in
-                    try? video.setFrameRate(frameRate)
-                    try configuration?(video)
-                }
+                try videoIO.attachVideo(track, device: device, configuration: configuration)
                 continuation.resume()
             } catch {
                 continuation.resume(throwing: Error.failedToAttach(error))
@@ -289,6 +279,21 @@ public final actor MediaMixer {
                 displayLink.preferredFramesPerSecond = Int(frameRate)
             }
         }
+        self.frameRate = frameRate
+    }
+
+    /// Sets the dynamic range mode.
+    ///
+    /// Warnings: It takes some time for changes to be applied to the camera device, so it’s better not to modify it dynamically during a live stream.
+    public func setDynamicRangeMode(_ dynamicRangeMode: DynamicRangeMode) throws {
+        guard self.dynamicRangeMode != dynamicRangeMode else {
+            return
+        }
+        Task { @ScreenActor in
+            screen.dynamicRangeMode = dynamicRangeMode
+        }
+        videoIO.dynamicRangeMode = dynamicRangeMode
+        self.dynamicRangeMode = dynamicRangeMode
     }
 
     /// Sets the audio mixer settings.
@@ -307,6 +312,7 @@ public final actor MediaMixer {
     @available(tvOS 17.0, *)
     public func startCapturing() {
         guard !session.isRunning else {
+            session.startRunningIfNeeded()
             return
         }
         session.startRunning()
@@ -390,14 +396,15 @@ public final actor MediaMixer {
     }
 
     #if os(iOS) || os(tvOS) || os(visionOS)
-    private func setBackgroundMode(_ background: Bool) {
+    private func setInBackground(_ isInBackground: Bool) {
+        self.isInBackground = isInBackground
         guard #available(tvOS 17.0, *) else {
             return
         }
-        if background {
-            videoIO.setBackgroundMode(background)
+        if isInBackground {
+            videoIO.setBackgroundMode(isInBackground)
         } else {
-            videoIO.setBackgroundMode(background)
+            videoIO.setBackgroundMode(isInBackground)
             session.startRunningIfNeeded()
         }
     }
@@ -433,6 +440,11 @@ public final actor MediaMixer {
                 logger.warn(error)
             }
         #endif
+        case .unknown:
+            // AVFoundationErrorDomain Code=-11800 "The operation could not be completed"
+            if error.errorCode == -11800 && !isInBackground {
+                session.startRunningIfNeeded()
+            }
         default:
             break
         }
@@ -441,19 +453,25 @@ public final actor MediaMixer {
 
 extension MediaMixer: AsyncRunner {
     // MARK: AsyncRunner
-    public func startRunning() {
+    public func startRunning() async {
         guard !isRunning else {
             return
         }
         isRunning = true
         setVideoRenderingMode(videoMixerSettings.mode)
-        startCapturing()
+        if #available(tvOS 17.0, *) {
+            startCapturing()
+        }
         Task {
             for await inputs in videoIO.inputs {
                 Task { @ScreenActor in
+                    let videoMixerSettings = await self.videoMixerSettings
+                    guard videoMixerSettings.mode == .offscreen else {
+                        return
+                    }
                     let sampleBuffer = inputs.1
                     screen.append(inputs.0, buffer: sampleBuffer)
-                    if await videoMixerSettings.mainTrack == inputs.0 {
+                    if videoMixerSettings.mainTrack == inputs.0 {
                         screen.setVideoCaptureLatency(sampleBuffer.presentationTimeStamp)
                     }
                 }
@@ -482,7 +500,7 @@ extension MediaMixer: AsyncRunner {
                 .Publisher(center: .default, name: UIApplication.didEnterBackgroundNotification, object: nil)
                 .sink { _ in
                     Task {
-                        await self.setBackgroundMode(true)
+                        await self.setInBackground(true)
                     }
                 }
                 .store(in: &cancellables)
@@ -490,7 +508,7 @@ extension MediaMixer: AsyncRunner {
                 .Publisher(center: .default, name: UIApplication.willEnterForegroundNotification, object: nil)
                 .sink { _ in
                     Task {
-                        await self.setBackgroundMode(false)
+                        await self.setInBackground(false)
                     }
                 }
                 .store(in: &cancellables)
@@ -498,20 +516,24 @@ extension MediaMixer: AsyncRunner {
         #endif
     }
 
-    public func stopRunning() {
+    public func stopRunning() async {
         guard isRunning else {
             return
         }
-        isRunning = false
-        stopCapturing()
+        if #available(tvOS 17.0, *) {
+            stopCapturing()
+        }
         audioIO.finish()
         videoIO.finish()
-        Task { @MainActor in
+        // Wait for the task to finish to prevent memory leaks.
+        await Task { @MainActor in
             cancellables.forEach { $0.cancel() }
             cancellables.removeAll()
-        }
-        Task { @ScreenActor in
+        }.value
+        await Task { @ScreenActor in
             displayLink.stopRunning()
-        }
+            screen.reset()
+        }.value
+        isRunning = false
     }
 }

@@ -38,7 +38,7 @@ public final class Screen: ScreenObjectContainerConvertible {
                 return
             }
             renderer.bounds = .init(origin: .zero, size: size)
-            CVPixelBufferPoolCreate(nil, nil, attributes as CFDictionary?, &pixelBufferPool)
+            CVPixelBufferPoolCreate(nil, nil, dynamicRangeMode.makePixelBufferAttributes(size), &pixelBufferPool)
         }
     }
 
@@ -50,9 +50,9 @@ public final class Screen: ScreenObjectContainerConvertible {
                 return
             }
             if isGPURendererEnabled {
-                renderer = ScreenRendererByGPU()
+                renderer = ScreenRendererByGPU(dynamicRangeMode: dynamicRangeMode)
             } else {
-                renderer = ScreenRendererByCPU()
+                renderer = ScreenRendererByCPU(dynamicRangeMode: dynamicRangeMode)
             }
         }
     }
@@ -87,19 +87,30 @@ public final class Screen: ScreenObjectContainerConvertible {
             renderer.synchronizationClock = newValue
         }
     }
-    private(set) var renderer: (any ScreenRenderer) = ScreenRendererByCPU()
+    var dynamicRangeMode: DynamicRangeMode = .sdr {
+        didSet {
+            guard dynamicRangeMode != oldValue else {
+                return
+            }
+            if isGPURendererEnabled {
+                renderer = ScreenRendererByGPU(dynamicRangeMode: dynamicRangeMode)
+            } else {
+                renderer = ScreenRendererByCPU(dynamicRangeMode: dynamicRangeMode)
+            }
+            CVPixelBufferPoolCreate(nil, nil, dynamicRangeMode.makePixelBufferAttributes(size), &pixelBufferPool)
+        }
+    }
+    private(set) var renderer: (any ScreenRenderer) = ScreenRendererByCPU(dynamicRangeMode: .sdr) {
+        didSet {
+            renderer.bounds = oldValue.bounds
+            renderer.backgroundColor = oldValue.backgroundColor
+            renderer.synchronizationClock = oldValue.synchronizationClock
+        }
+    }
     private(set) var targetTimestamp: TimeInterval = 0.0
     private(set) var videoTrackScreenObject = VideoTrackScreenObject()
     private var videoCaptureLatency: TimeInterval = 0.0
     private var root: ScreenObjectContainer = .init()
-    private var attributes: [NSString: NSObject] {
-        return [
-            kCVPixelBufferPixelFormatTypeKey: NSNumber(value: kCVPixelFormatType_32ARGB),
-            kCVPixelBufferMetalCompatibilityKey: kCFBooleanTrue,
-            kCVPixelBufferWidthKey: NSNumber(value: Int(size.width)),
-            kCVPixelBufferHeightKey: NSNumber(value: Int(size.height))
-        ]
-    }
     private var outputFormat: CMFormatDescription?
     private var pixelBufferPool: CVPixelBufferPool? {
         didSet {
@@ -111,7 +122,7 @@ public final class Screen: ScreenObjectContainerConvertible {
     /// Creates a screen object.
     public init() {
         try? addChild(videoTrackScreenObject)
-        CVPixelBufferPoolCreate(nil, nil, attributes as CFDictionary?, &pixelBufferPool)
+        CVPixelBufferPoolCreate(nil, nil, dynamicRangeMode.makePixelBufferAttributes(size), &pixelBufferPool)
     }
 
     /// Adds the specified screen object as a child of the current screen object container.
@@ -214,5 +225,12 @@ public final class Screen: ScreenObjectContainerConvertible {
         let hostPresentationTimeStamp = presentationTimeStamp.convertTime(from: synchronizationClock)
         let diff = ceil((targetTimestamp - hostPresentationTimeStamp.seconds) * 10000) / 10000
         videoCaptureLatency = diff
+    }
+
+    func reset() {
+        let screens: [VideoTrackScreenObject] = root.getScreenObjects()
+        for screen in screens {
+            screen.reset()
+        }
     }
 }

@@ -7,15 +7,11 @@ final class ScreenRendererByCPU: ScreenRenderer {
     static let doNotTile = vImage_Flags(kvImageDoNotTile)
 
     var bounds: CGRect = .init(origin: .zero, size: Screen.size)
+    let imageOptions: [CIImageOption: Any]?
     var synchronizationClock: CMClock?
     var presentationTimeStamp: CMTime = .zero
 
-    lazy var context = {
-        guard let deive = MTLCreateSystemDefaultDevice() else {
-            return CIContext(options: nil)
-        }
-        return CIContext(mtlDevice: deive)
-    }()
+    let context: CIContext
 
     var backgroundColor = CGColor(red: 0x00, green: 0x00, blue: 0x00, alpha: 0x00) {
         didSet {
@@ -75,6 +71,15 @@ final class ScreenRendererByCPU: ScreenRenderer {
     private lazy var choromaKeyProcessor: ChromaKeyProcessor? = {
         return try? ChromaKeyProcessor()
     }()
+
+    init(dynamicRangeMode: DynamicRangeMode) {
+        context = dynamicRangeMode.makeCIContext()
+        if let colorSpace = dynamicRangeMode.colorSpace {
+            imageOptions = [.colorSpace: colorSpace]
+        } else {
+            imageOptions = nil
+        }
+    }
 
     func setTarget(_ pixelBuffer: CVPixelBuffer?) {
         guard let pixelBuffer else {
