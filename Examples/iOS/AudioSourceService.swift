@@ -149,10 +149,41 @@ extension AudioSourceService: AsyncRunner {
             audioEngineCapture = AudioEngineCapture()
             audioEngineCapture?.startRunning()
             tasks.append(Task {
-                for await _ in NotificationCenter.default.notifications(named: AVAudioSession.routeChangeNotification)
+                for await reason in NotificationCenter.default.notifications(named: AVAudioSession.routeChangeNotification)
                     .compactMap({ $0.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt })
                     .compactMap({ AVAudioSession.RouteChangeReason(rawValue: $0) }) {
-                    audioEngineCapture?.startCaptureIfNeeded()
+                    // There are cases where it crashes when executed in situations other than attaching or detaching earphones. https://github.com/HaishinKit/HaishinKit.swift/issues/1863
+                    switch reason {
+                    case .newDeviceAvailable, .oldDeviceUnavailable:
+                        audioEngineCapture?.startCaptureIfNeeded()
+                    default: ()
+                    }
+                }
+            })
+            tasks.append(Task {
+                for await notification in NotificationCenter.default.notifications(
+                    named: AVAudioSession.interruptionNotification,
+                    object: AVAudioSession.sharedInstance()
+                ) {
+                    guard
+                        let userInfo = notification.userInfo,
+                        let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                        let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+                        return
+                    }
+                    switch type {
+                    case .began:
+                        logger.info("interruption began", notification)
+                    case .ended:
+                        logger.info("interruption end", notification)
+                        let optionsValue =
+                            userInfo[AVAudioSessionInterruptionOptionKey] as? UInt
+                        let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue ?? 0)
+                        if options.contains(.shouldResume) {
+                            audioEngineCapture?.startCaptureIfNeeded()
+                        }
+                    default: ()
+                    }
                 }
             })
         case .audioSource:
