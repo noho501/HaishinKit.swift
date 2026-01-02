@@ -1,5 +1,4 @@
 @preconcurrency import AVFoundation
-import Combine
 
 #if canImport(UIKit)
 import UIKit
@@ -123,9 +122,8 @@ public final actor MediaMixer {
     #endif
 
     public private(set) var isRunning = false
+
     private var outputs: [any MediaMixerOutput] = []
-    @MainActor
-    private var cancellables: Set<AnyCancellable> = []
     private var subscriptions: [Task<Void, Never>] = []
     private var isInBackground = false
     private lazy var audioIO = AudioCaptureUnit(session, isMultiTrackAudioMixingEnabled: isMultiTrackAudioMixingEnabled)
@@ -399,13 +397,13 @@ public final actor MediaMixer {
     #if os(iOS) || os(tvOS) || os(visionOS)
     private func setInBackground(_ isInBackground: Bool) {
         self.isInBackground = isInBackground
-        guard #available(tvOS 17.0, *) else {
+        guard #available(tvOS 17.0, *), !session.isMultitaskingCameraAccessEnabled else {
             return
         }
         if isInBackground {
-            videoIO.setBackgroundMode(isInBackground)
+            videoIO.suspend()
         } else {
-            videoIO.setBackgroundMode(isInBackground)
+            videoIO.resume()
             session.startRunningIfNeeded()
         }
     }
@@ -521,24 +519,20 @@ extension MediaMixer: AsyncRunner {
             }
         }
         #if os(iOS) || os(tvOS) || os(visionOS)
-        Task { @MainActor in
-            NotificationCenter
-                .Publisher(center: .default, name: UIApplication.didEnterBackgroundNotification, object: nil)
-                .sink { _ in
-                    Task {
-                        await self.setInBackground(true)
-                    }
-                }
-                .store(in: &cancellables)
-            NotificationCenter
-                .Publisher(center: .default, name: UIApplication.willEnterForegroundNotification, object: nil)
-                .sink { _ in
-                    Task {
-                        await self.setInBackground(false)
-                    }
-                }
-                .store(in: &cancellables)
-        }
+        subscriptions.append(Task {
+            for await _ in NotificationCenter.default.notifications(
+                named: UIApplication.didEnterBackgroundNotification
+            ) {
+                setInBackground(true)
+            }
+        })
+        subscriptions.append(Task {
+            for await _ in NotificationCenter.default.notifications(
+                named: UIApplication.willEnterForegroundNotification
+            ) {
+                setInBackground(false)
+            }
+        })
         if #available(tvOS 17.0, *) {
             subscriptions.append(Task {
                 for await notification in NotificationCenter.default.notifications(
@@ -564,10 +558,6 @@ extension MediaMixer: AsyncRunner {
         subscriptions.forEach { $0.cancel() }
         subscriptions.removeAll()
         // Wait for the task to finish to prevent memory leaks.
-        await Task { @MainActor in
-            cancellables.forEach { $0.cancel() }
-            cancellables.removeAll()
-        }.value
         await Task { @ScreenActor in
             displayLink.stopRunning()
             screen.reset()
