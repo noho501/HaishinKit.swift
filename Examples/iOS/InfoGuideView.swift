@@ -72,29 +72,29 @@ private struct PublishGuideList: View {
         List {
             Section("Stream Settings") {
                 GuideRowWithIcon(icon: "15", isText: true, title: "FPS",
-                                description: "Frames per second. 15 saves battery, 30 is standard, 60 is ultra-smooth.")
+                                 description: "Frames per second. 15 saves battery, 30 is standard, 60 is ultra-smooth.")
                 GuideRowWithIcon(icon: "slider.horizontal.3", title: "Bitrate (kbps)",
-                                description: "Video quality. Higher = better but more data. 1500-2500 recommended.")
+                                 description: "Video quality. Higher = better but more data. 1500-2500 recommended.")
                 GuideRowWithIcon(icon: "rectangle.badge.checkmark", title: "720p",
-                                description: "Video resolution (1280×720). Good balance of quality and performance.")
+                                 description: "Video resolution (1280×720). Good balance of quality and performance.")
             }
             Section("Controls") {
                 GuideRowWithIcon(icon: "record.circle", title: "Record",
-                                description: "Save a local copy to Photos. Only available while streaming.")
+                                 description: "Save a local copy to Photos. Only available while streaming.")
                 GuideRowWithIcon(icon: "mic.fill", title: "Mute",
-                                description: "Mute/unmute microphone. Red when muted.")
+                                 description: "Mute/unmute microphone. Red when muted.")
                 GuideRowWithIcon(icon: "arrow.triangle.2.circlepath.camera", title: "Flip Camera",
-                                description: "Switch between front and back cameras.")
+                                 description: "Switch between front and back cameras.")
                 GuideRowWithIcon(icon: "flashlight.on.fill", title: "Torch",
-                                description: "Toggle flashlight. Only works with back camera.")
+                                 description: "Toggle flashlight. Only works with back camera.")
                 GuideRowWithIcon(icon: "rectangle.on.rectangle", title: "Dual Camera",
-                                description: "Overlay the other camera in your stream. Viewers see both cameras.")
+                                 description: "Overlay the other camera in your stream. Viewers see both cameras.")
             }
             Section("Live Stats") {
                 GuideRowWithIcon(icon: "arrow.up", title: "Upload Speed",
-                                description: "Current upload rate in KB/s. The graph shows last 60 seconds.")
+                                 description: "Current upload rate in KB/s. The graph shows last 60 seconds.")
                 GuideRowWithIcon(icon: "thermometer.medium", title: "Temperature",
-                                description: "Device thermal state. Lower FPS/bitrate if too hot.")
+                                 description: "Device thermal state. Lower FPS/bitrate if too hot.")
             }
         }
     }

@@ -113,7 +113,6 @@ struct PreferenceView: View {
     }
 }
 
-
 #Preview {
     PreferenceView()
 }
