@@ -61,9 +61,7 @@ actor AudioSourceService {
         do {
             let session = AVAudioSession.sharedInstance()
             // If you set the "mode" parameter, stereo capture is not possible, so it is left unspecified.
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
-            // It looks like this setting is required on iOS 18.5.
-            try session.setPreferredInputNumberOfChannels(2)
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try session.setActive(true)
             // It looks like this setting is required on iOS 18.5.
             try? session.setPreferredInputNumberOfChannels(2)
