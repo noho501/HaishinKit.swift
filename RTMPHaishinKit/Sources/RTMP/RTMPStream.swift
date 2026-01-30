@@ -268,6 +268,22 @@ public actor RTMPStream {
             }
         }
     }
+    
+    private var appVersionString: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let build = info?["CFBundleVersion"] as? String ?? "0"
+        return "\(version) (\(build))"
+    }
+
+    private var osVersionString: String {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
+    }
+
+    private var timestampMs: Int {
+        Int(Date().timeIntervalSince1970 * 1000)
+    }
 
     /// Creates a new stream.
     public init(connection: RTMPConnection, fcPublishName: String? = nil) {
@@ -685,8 +701,15 @@ public actor RTMPStream {
 
     /// Creates flv metadata for a stream.
     private func makeMetadata() -> AMFArray {
-        // https://github.com/shogo4405/HaishinKit.swift/issues/1410
-        var metadata: AMFObject = ["duration": 0]
+        var metadata: AMFObject = [
+            "fileSize": 0,
+            "encoder": "LiveNow",
+            "publisherinfo": "osType=iOS&osVersion=\(osVersionString)&appVersion=\(appVersionString)",
+            "yt_project": "LiveNow \(appVersionString) iOS",
+            "timestamp": timestampMs
+        ]
+
+        // ===== Video =====
         if outgoing.videoInputFormat != nil {
             metadata["width"] = outgoing.videoSettings.videoSize.width
             metadata["height"] = outgoing.videoSettings.videoSize.height
