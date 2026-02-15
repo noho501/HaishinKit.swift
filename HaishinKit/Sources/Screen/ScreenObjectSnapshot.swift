@@ -15,7 +15,7 @@ public struct ScreenObjectSnapshot: Codable, Sendable {
         /// The height of the rectangle.
         public let height: Int
 
-        var cgSize: CGSize {
+        public var cgSize: CGSize {
             return CGSize(width: width, height: height)
         }
     }

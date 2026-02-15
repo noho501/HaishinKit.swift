@@ -78,7 +78,6 @@ public final class ImageScreenObject: ScreenObject {
             do {
                 try setSource(newValue[Keys.source])
             } catch {
-                print(error)
                 logger.warn(error)
             }
         }
@@ -90,7 +89,11 @@ public final class ImageScreenObject: ScreenObject {
         let intersection = bounds.intersection(renderer.bounds)
 
         guard bounds != intersection else {
-            return ciImage
+            if let ciImage {
+                return ciImage.transformed(by: .init(scaleX: size.width / ciImage.extent.width, y: size.height / ciImage.extent.height))
+            } else {
+                return nil
+            }
         }
 
         // Handling when the drawing area is exceeded.
@@ -113,6 +116,7 @@ public final class ImageScreenObject: ScreenObject {
         case .bottom:
             y = abs(bounds.origin.y)
         }
+
         if let ciImage = ciImage?.cropped(to: .init(origin: .init(x: x, y: y), size: intersection.size)) {
             return ciImage
         } else {
@@ -127,7 +131,7 @@ public final class ImageScreenObject: ScreenObject {
         return super.makeBounds(size == .zero ? ciImage.extent.size : size)
     }
 
-    public func setSource(_ source: String?) throws {
+    func setSource(_ source: String?) throws {
         self.source = source
         let imageSource = try ImageSourceFactory.parse(URL(string: source ?? ""))
         ciImage = try imageSource.toImage()

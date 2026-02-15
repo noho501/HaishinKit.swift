@@ -112,9 +112,10 @@ final class PublishViewModel: ObservableObject {
             image.horizontalAlignment = .right
             image.verticalAlignment = .bottom
             image.layoutMargin = .init(top: 0, left: 0, bottom: 16, right: 16)
-            let nsImage = await NSApplication.shared.applicationIconImage
-            if let cgImage = nsImage?.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                image.ciImage = CIImage(cgImage: cgImage)
+            let appIconFile = URL(fileURLWithPath: Bundle.main.path(forResource: "AppIcon", ofType: "png") ?? "")
+            if let nsImage = NSImage(contentsOf: appIconFile), let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                let ciImage = CIImage(cgImage: cgImage)
+                image.ciImage = ciImage
             }
             try? await mixer.screen.addChild(image)
         }
