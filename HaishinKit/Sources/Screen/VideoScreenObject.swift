@@ -2,7 +2,11 @@ import AVFoundation
 import CoreImage
 
 /// An object that manages offscreen rendering a video track source.
-public final class VideoTrackScreenObject: ScreenObject, ChromaKeyProcessable {
+public final class VideoScreenObject: ScreenObject, ChromaKeyProcessable {
+    private enum Keys {
+        static let track = "track"
+    }
+
     public static let type: String = "video"
     static let capacity: Int = 3
 
@@ -31,6 +35,17 @@ public final class VideoTrackScreenObject: ScreenObject, ChromaKeyProcessable {
     /// The frame rate.
     public var frameRate: Int {
         frameTracker.frameRate
+    }
+
+    override public var elements: [String: String] {
+        get {
+            return [
+                Keys.track: track.description
+            ]
+        }
+        set {
+            track = UInt8(newValue[Keys.track]?.description ?? "0") ?? 0
+        }
     }
 
     override var blendMode: ScreenObject.BlendMode {
