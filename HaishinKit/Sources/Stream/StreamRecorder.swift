@@ -398,7 +398,12 @@ public actor StreamRecorder {
         // Start the AVAssetWriter session on the very first sample.
         if writer.status == .unknown {
             guard writer.startWriting() else {
-                handleUnexpectedWriterStatus(writer: writer, mediaType: mediaType, pts: sampleBuffer.presentationTimeStamp)
+                statistics.writerFailures += 1
+                logger.error(
+                    "StreamRecorder: startWriting failed error=\(String(describing: writer.error)) "
+                        + "mediaType=\(mediaType.rawValue) pts=\(sampleBuffer.presentationTimeStamp.seconds)"
+                )
+                continuation?.yield(.failedToAppend(error: writer.error))
                 return
             }
             let pts = sampleBuffer.presentationTimeStamp
