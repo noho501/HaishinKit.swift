@@ -35,7 +35,7 @@ public actor StreamRecorder {
         case stopping
         /// Writing finished successfully.
         case finished
-        /// Writing failed, but the recorder can be started again.
+        /// Writing failed during setup or shutdown, but the recorder can be started again.
         case failed
         /// An unrecoverable runtime error occurred; this recorder instance must be discarded.
         case fatal
@@ -415,7 +415,7 @@ public actor StreamRecorder {
                     "StreamRecorder: startWriting failed error=\(String(describing: writer.error)) "
                         + "mediaType=\(mediaType.rawValue) pts=\(sampleBuffer.presentationTimeStamp.seconds)"
                 )
-                transitionToFailedState()
+                transitionToFatalState()
                 return
             }
             let pts = sampleBuffer.presentationTimeStamp
@@ -479,7 +479,7 @@ public actor StreamRecorder {
                     + "dropped=\(statistics.droppedFrames) failures=\(statistics.appendFailures)"
             )
             if writer.status == .failed {
-                transitionToFailedState()
+                transitionToFatalState()
             } else {
                 continuation?.yield(.failedToAppend(error: writer.error))
             }
@@ -504,7 +504,7 @@ public actor StreamRecorder {
                 "StreamRecorder: writer failed error=\(String(describing: writer.error)) "
                     + "mediaType=\(mediaType.rawValue) pts=\(pts.seconds)"
             )
-            transitionToFailedState()
+            transitionToFatalState()
         case .cancelled:
             logger.warn("StreamRecorder: writer cancelled, skipping \(mediaType.rawValue)")
         @unknown default:
@@ -512,7 +512,7 @@ public actor StreamRecorder {
         }
     }
 
-    private func transitionToFailedState() {
+    private func transitionToFatalState() {
         guard state != .fatal else {
             return
         }
