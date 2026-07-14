@@ -51,15 +51,22 @@ public actor StreamRecorder {
     private final class SampleQueue: @unchecked Sendable {
         private let lock = NSLock()
         private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
+private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
 
-        /// Enqueue a sample.  Returns silently if the stream has already been finished.
+        private func withLock<T>(_ body: () -> T) -> T {
+            lock.lock()
+            defer { lock.unlock() }
+            return body()
+        }
+
+        /// Enqueue a sample. Returns silently if the stream has already been finished.
         func send(_ sample: CMSampleBuffer) {
-            lock.withLock { _ = continuation?.yield(sample) }
+            withLock { _ = continuation?.yield(sample) }
         }
 
         /// Finish the stream and clear the reference.
         func finish() {
-            lock.withLock {
+            withLock {
                 continuation?.finish()
                 continuation = nil
             }
@@ -67,7 +74,7 @@ public actor StreamRecorder {
 
         /// Store the continuation created alongside a new `AsyncStream`.
         func set(_ continuation: AsyncStream<CMSampleBuffer>.Continuation) {
-            lock.withLock { self.continuation = continuation }
+            withLock { self.continuation = continuation }
         }
     }
 
