@@ -397,7 +397,10 @@ public actor StreamRecorder {
 
         // Start the AVAssetWriter session on the very first sample.
         if writer.status == .unknown {
-            writer.startWriting()
+            guard writer.startWriting() else {
+                handleUnexpectedWriterStatus(writer: writer, mediaType: mediaType, pts: sampleBuffer.presentationTimeStamp)
+                return
+            }
             let pts = sampleBuffer.presentationTimeStamp
             writer.startSession(atSourceTime: pts)
             sessionStartTime = pts
