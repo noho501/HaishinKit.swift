@@ -42,8 +42,12 @@ public actor StreamRecorder {
     // MARK: - Sample Queue
 
     /// Thread-safe FIFO channel that bridges nonisolated callbacks into the actor's
-    /// sequential processing loop.  `AsyncStream.Continuation` itself is Sendable, so
-    /// wrapping it in an NSLock gives us safe concurrent access without involving the actor.
+    /// sequential processing loop.
+    ///
+    /// `@unchecked Sendable` is used here because `continuation` is mutable, but all
+    /// accesses are protected by `NSLock`, making concurrent reads and writes safe.
+    /// `AsyncStream.Continuation` is itself `Sendable`, so calling `yield`/`finish`
+    /// from any thread is safe once the lock is held.
     private final class SampleQueue: @unchecked Sendable {
         private let lock = NSLock()
         private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
@@ -195,8 +199,8 @@ public actor StreamRecorder {
         }
     }
     private var writerInputs: [AVMediaType: AVAssetWriterInput] = [:]
-    private var audioPresentationTime: CMTime = .invalid
-    private var videoPresentationTime: CMTime = .invalid
+    private var audioPresentationTime: CMTime = .invalid  // .invalid means "no buffer received yet"
+    private var videoPresentationTime: CMTime = .invalid  // .invalid means "no buffer received yet"
     private var sessionStartTime: CMTime = .invalid
     private var dimensions: CMVideoDimensions = .init(width: 0, height: 0)
 
@@ -247,7 +251,7 @@ public actor StreamRecorder {
     ///   - url: The file path for recording. If nil is specified, a unique file path will be returned automatically.
     ///   - settings: Settings for recording.
     /// - Throws: `Error.fileAlreadyExists` when case file already exists.
-    /// - Throws: `Error.notSupportedFileType` when case species not supported format.
+    /// - Throws: `Error.notSupportedFileType` when case specifies not supported format.
     public func startRecording(_ url: URL? = nil, settings: [AVMediaType: [String: any Sendable]] = StreamRecorder.defaultSettings) async throws {
         switch state {
         case .idle, .finished, .failed:
@@ -296,8 +300,9 @@ public actor StreamRecorder {
         state = .writing
         isRecording = true
 
-        processingTask = Task { [weak self] in
-            guard let self else { return }
+        // Strong capture is intentional: the actor must stay alive while samples are being
+        // processed.  The cycle is broken when `processingTask = nil` in `stopRecording()`.
+        processingTask = Task {
             for await sample in stream {
                 await self.processBuffer(sample)
             }
@@ -552,15 +557,15 @@ public actor StreamRecorder {
 
     private func sessionDuration() -> Double {
         guard sessionStartTime.isValid else { return 0 }
-        var lastPTS = CMTime.invalid
+        var lastPTS: CMTime = .invalid
         if videoPresentationTime.isValid {
-            lastPTS = lastPTS.isValid ? max(lastPTS, videoPresentationTime) : videoPresentationTime
+            lastPTS = lastPTS.isValid ? CMTimeMaximum(lastPTS, videoPresentationTime) : videoPresentationTime
         }
         if audioPresentationTime.isValid {
-            lastPTS = lastPTS.isValid ? max(lastPTS, audioPresentationTime) : audioPresentationTime
+            lastPTS = lastPTS.isValid ? CMTimeMaximum(lastPTS, audioPresentationTime) : audioPresentationTime
         }
-        guard lastPTS.isValid, lastPTS > sessionStartTime else { return 0 }
-        return (lastPTS - sessionStartTime).seconds
+        guard lastPTS.isValid, CMTimeCompare(lastPTS, sessionStartTime) > 0 else { return 0 }
+        return CMTimeSubtract(lastPTS, sessionStartTime).seconds
     }
 
     // MARK: - Writer Input Creation
@@ -588,10 +593,16 @@ public actor StreamRecorder {
                 }
                 guard inSourceFormat.mSampleRate > 0 else {
                     logger.error("StreamRecorder: invalid audio sample rate \(inSourceFormat.mSampleRate)")
+                    continuation?.yield(.failedToCreateAssetWriterInput(
+                        error: makeDescriptiveError("invalid audio sample rate \(inSourceFormat.mSampleRate)")
+                    ))
                     return nil
                 }
                 guard inSourceFormat.mChannelsPerFrame > 0 else {
                     logger.error("StreamRecorder: invalid audio channel count \(inSourceFormat.mChannelsPerFrame)")
+                    continuation?.yield(.failedToCreateAssetWriterInput(
+                        error: makeDescriptiveError("invalid audio channel count \(inSourceFormat.mChannelsPerFrame)")
+                    ))
                     return nil
                 }
                 for (key, value) in settings {
