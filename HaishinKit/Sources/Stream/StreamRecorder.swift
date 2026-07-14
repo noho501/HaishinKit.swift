@@ -658,6 +658,13 @@ public actor StreamRecorder {
             sourceFormatHint: sourceFormatHint
         )
         input.expectsMediaDataInRealTime = true
+        guard writer?.canAdd(input) == true else {
+            logger.error("StreamRecorder: canAdd returned false for mediaType=\(mediaType.rawValue)")
+            continuation?.yield(.failedToCreateAssetWriterInput(
+                error: makeDescriptiveError("canAdd returned false for \(mediaType.rawValue)")
+            ))
+            return nil
+        }
         writerInputs[mediaType] = input
         writer?.add(input)
         return input
