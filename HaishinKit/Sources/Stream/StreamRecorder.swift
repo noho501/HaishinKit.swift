@@ -35,8 +35,10 @@ public actor StreamRecorder {
         case stopping
         /// Writing finished successfully.
         case finished
-        /// An unrecoverable error occurred.
+        /// Writing failed, but the recorder can be started again.
         case failed
+        /// An unrecoverable runtime error occurred; this recorder instance must be discarded.
+        case fatal
     }
 
     // MARK: - Sample Queue
@@ -51,7 +53,6 @@ public actor StreamRecorder {
     private final class SampleQueue: @unchecked Sendable {
         private let lock = NSLock()
         private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
-private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
 
         private func withLock<T>(_ body: () -> T) -> T {
             lock.lock()
@@ -118,6 +119,8 @@ private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
         case failedToCreateAssetWriterInput(error: any Swift.Error)
         /// Failed to append the PixelBuffer or SampleBuffer.
         case failedToAppend(error: (any Swift.Error)?)
+        /// The recorder entered an unrecoverable failed state and will not accept more samples.
+        case failedState
         /// Failed to finish writing the AVAssetWriter.
         case failedToFinishWriting(error: (any Swift.Error)?)
     }
@@ -342,9 +345,8 @@ private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
         // Stop accepting new samples.  Any yield after finish() is a no-op.
         sampleQueue.finish()
 
-        // Wait for all samples already in the FIFO to be processed.
-        // processBuffer checks state == .writing and returns early while stopping,
-        // so this drains quickly without writing anything further.
+        // Wait for all samples already in the FIFO to be processed before finishing
+        // the writer inputs.
         await processingTask?.value
         processingTask = nil
 
@@ -392,7 +394,10 @@ private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
 
     /// Called serially for every sample that was enqueued before `stopRecording()`.
     private func processBuffer(_ sampleBuffer: CMSampleBuffer) async {
-        guard case .writing = state else {
+        switch state {
+        case .writing, .stopping:
+            break
+        default:
             return
         }
 
@@ -410,7 +415,7 @@ private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
                     "StreamRecorder: startWriting failed error=\(String(describing: writer.error)) "
                         + "mediaType=\(mediaType.rawValue) pts=\(sampleBuffer.presentationTimeStamp.seconds)"
                 )
-                continuation?.yield(.failedToAppend(error: writer.error))
+                transitionToFailedState()
                 return
             }
             let pts = sampleBuffer.presentationTimeStamp
@@ -473,7 +478,11 @@ private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
                     + "writerStatus=\(writer.status.rawValue) writerError=\(String(describing: writer.error)) "
                     + "dropped=\(statistics.droppedFrames) failures=\(statistics.appendFailures)"
             )
-            continuation?.yield(.failedToAppend(error: writer.error))
+            if writer.status == .failed {
+                transitionToFailedState()
+            } else {
+                continuation?.yield(.failedToAppend(error: writer.error))
+            }
         }
     }
 
@@ -495,12 +504,22 @@ private var continuation: AsyncStream<CMSampleBuffer>.Continuation?
                 "StreamRecorder: writer failed error=\(String(describing: writer.error)) "
                     + "mediaType=\(mediaType.rawValue) pts=\(pts.seconds)"
             )
-            continuation?.yield(.failedToAppend(error: writer.error))
+            transitionToFailedState()
         case .cancelled:
             logger.warn("StreamRecorder: writer cancelled, skipping \(mediaType.rawValue)")
         @unknown default:
             logger.warn("StreamRecorder: writer unknown status=\(writer.status.rawValue) mediaType=\(mediaType.rawValue)")
         }
+    }
+
+    private func transitionToFailedState() {
+        guard state != .fatal else {
+            return
+        }
+        state = .fatal
+        isRecording = false
+        sampleQueue.finish()
+        continuation?.yield(.failedState)
     }
 
     // MARK: - Finish Writing
