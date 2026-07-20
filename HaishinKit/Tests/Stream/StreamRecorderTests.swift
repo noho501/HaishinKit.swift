@@ -76,10 +76,10 @@ import Testing
 
         guard
             let first = CMAudioSampleBufferFactory.makeSilence(
-                presentaionTimeStamp: .zero
+                presentationTimeStamp: .zero
             ),
             let second = CMAudioSampleBufferFactory.makeSilence(
-                presentaionTimeStamp: CMTime(value: 1024, timescale: 44_100)
+                presentationTimeStamp: CMTime(value: 1024, timescale: 44_100)
             ) else {
             Issue.record()
             return

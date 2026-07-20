@@ -2,7 +2,7 @@ import AVFoundation
 @testable import HaishinKit
 
 enum CMAudioSampleBufferFactory {
-    static func makeSilence(_ sampleRate: Double = 44100, numSamples: Int = 1024, channels: UInt32 = 1, presentaionTimeStamp: CMTime = .zero) -> CMSampleBuffer? {
+    static func makeSilence(_ sampleRate: Double = 44100, numSamples: Int = 1024, channels: UInt32 = 1, presentationTimeStamp: CMTime = .zero) -> CMSampleBuffer? {
         var asbd = AudioStreamBasicDescription(
             mSampleRate: sampleRate,
             mFormatID: kAudioFormatLinearPCM,
@@ -60,7 +60,7 @@ enum CMAudioSampleBufferFactory {
             refcon: nil,
             formatDescription: formatDescription!,
             sampleCount: numSamples,
-            presentationTimeStamp: presentaionTimeStamp,
+            presentationTimeStamp: presentationTimeStamp,
             packetDescriptions: nil,
             sampleBufferOut: &sampleBuffer
         )
