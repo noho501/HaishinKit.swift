@@ -29,7 +29,13 @@ public actor StreamRecorder {
         case idle
         /// `startRecording` is setting up the writer but has not yet received samples.
         case starting
-        /// Actively receiving and writing samples.
+        /// The writer exists, but `AVAssetWriter.startWriting()` has not succeeded yet.
+        ///
+        /// The recorder must not report `.writing` while the underlying writer is still
+        /// `.unknown`, otherwise `stopRecording()` can try to finish a session that never
+        /// actually started.
+        case waitingForFirstSample
+        /// Actively receiving and writing samples after `AVAssetWriter` entered `.writing`.
         case writing
         /// `stopRecording` has been called; draining queued samples before finishing.
         case stopping
@@ -307,7 +313,10 @@ public actor StreamRecorder {
         let (stream, continuation) = AsyncStream.makeStream(of: CMSampleBuffer.self)
         sampleQueue.set(continuation)
 
-        state = .writing
+        // Keep the recorder out of `.writing` until the first sample successfully starts the
+        // underlying `AVAssetWriter` session. Otherwise the internal state can claim recording
+        // has started while the writer is still `.unknown`.
+        state = .waitingForFirstSample
         isRecording = true
 
         // Strong capture is intentional: the actor must stay alive while samples are being
@@ -335,7 +344,10 @@ public actor StreamRecorder {
     ///  }
     /// ```
     public func stopRecording() async throws -> URL {
-        guard case .writing = state else {
+        switch state {
+        case .waitingForFirstSample, .writing:
+            break
+        default:
             throw Error.invalidState
         }
 
@@ -395,7 +407,7 @@ public actor StreamRecorder {
     /// Called serially for every sample that was enqueued before `stopRecording()`.
     private func processBuffer(_ sampleBuffer: CMSampleBuffer) async {
         switch state {
-        case .writing, .stopping:
+        case .waitingForFirstSample, .writing, .stopping:
             break
         default:
             return
@@ -421,6 +433,9 @@ public actor StreamRecorder {
             let pts = sampleBuffer.presentationTimeStamp
             writer.startSession(atSourceTime: pts)
             sessionStartTime = pts
+            if state == .waitingForFirstSample {
+                state = .writing
+            }
         }
 
         // Only write when the writer is healthy.
@@ -536,13 +551,12 @@ public actor StreamRecorder {
             throw Error.failedToFinishWriting(error: nil)
         }
 
-        // Mark every input finished before calling finishWriting().
-        for (_, input) in writerInputs {
-            input.markAsFinished()
-        }
-
         switch writer.status {
         case .writing:
+            // Only mark inputs finished after the writer session has actually started.
+            for (_, input) in writerInputs {
+                input.markAsFinished()
+            }
             await writer.finishWriting()
             if writer.status == .completed {
                 statistics.recordingDuration = sessionDuration()
@@ -564,10 +578,10 @@ public actor StreamRecorder {
             return writer.outputURL
 
         case .unknown:
-            // No samples were ever written; writer was never started.
+            // No samples were ever written, so there is no writer session to finalize.
             logger.warn("StreamRecorder: writer was never started (no samples received)")
-            state = .failed
-            throw Error.failedToFinishWriting(error: nil)
+            state = .finished
+            return writer.outputURL
 
         case .failed:
             statistics.writerFailures += 1
