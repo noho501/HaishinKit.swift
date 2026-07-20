@@ -57,11 +57,12 @@ import Testing
 
         try await recorder.startRecording(filePath, settings: audioOnlySettings)
         let outputURL = try await recorder.stopRecording()
+        let statistics = await recorder.statistics
 
         #expect(outputURL == filePath)
         #expect(await recorder.isRecording == false)
-        #expect((await recorder.statistics).totalAudioBuffers == 0)
-        #expect((await recorder.statistics).recordingDuration == 0)
+        #expect(statistics.totalAudioBuffers == 0)
+        #expect(statistics.recordingDuration == 0)
     }
 
     @Test func stopRecording_drainsQueuedAudioSamples() async throws {
