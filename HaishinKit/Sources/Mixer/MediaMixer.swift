@@ -419,7 +419,7 @@ public final actor MediaMixer {
         switch type {
         case .began:
             // video capture continues even while an incoming call is ringing.
-            audioIO.suspend()
+            //audioIO.suspend()
             session.startRunningIfNeeded()
             logger.info("Audio suspended due to system interruption.")
         case .ended:

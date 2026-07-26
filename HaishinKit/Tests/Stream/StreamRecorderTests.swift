@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Testing
 
@@ -45,5 +46,66 @@ import Testing
         } catch {
             try? FileManager.default.removeItem(atPath: filePath.path)
         }
+    }
+
+    @Test func stopRecording_beforeFirstSample() async throws {
+        let recorder = StreamRecorder()
+        let filePath = await uniqueOutputURL(for: recorder, name: "before-first-sample")
+        defer {
+            try? FileManager.default.removeItem(at: filePath)
+        }
+
+        try await recorder.startRecording(filePath, settings: audioOnlySettings)
+        let outputURL = try await recorder.stopRecording()
+        let statistics = await recorder.statistics
+
+        #expect(outputURL == filePath)
+        #expect(await recorder.isRecording == false)
+        #expect(statistics.totalAudioBuffers == 0)
+        #expect(statistics.recordingDuration == 0)
+    }
+
+    @Test func stopRecording_drainsQueuedAudioSamples() async throws {
+        let recorder = StreamRecorder()
+        let mixer = MediaMixer()
+        let filePath = await uniqueOutputURL(for: recorder, name: "drain-queued-audio")
+        defer {
+            try? FileManager.default.removeItem(at: filePath)
+        }
+
+        try await recorder.startRecording(filePath, settings: audioOnlySettings)
+
+        guard
+            let first = CMAudioSampleBufferFactory.makeSilence(
+                presentationTimeStamp: .zero
+            ),
+            let second = CMAudioSampleBufferFactory.makeSilence(
+                presentationTimeStamp: CMTime(value: 1024, timescale: 44_100)
+            ) else {
+            Issue.record()
+            return
+        }
+
+        recorder.mixer(mixer, didOutput: first)
+        recorder.mixer(mixer, didOutput: second)
+
+        let outputURL = try await recorder.stopRecording()
+        let statistics = await recorder.statistics
+
+        #expect(outputURL == filePath)
+        #expect(statistics.totalAudioBuffers == 2)
+        #expect(statistics.appendFailures == 0)
+        #expect(statistics.droppedFrames == 0)
+        #expect(statistics.recordingDuration > 0)
+    }
+
+    private func uniqueOutputURL(for recorder: StreamRecorder, name: String) async -> URL {
+        await recorder.moviesDirectory
+            .appendingPathComponent("\(name)-\(UUID().uuidString)")
+            .appendingPathExtension("mp4")
+    }
+
+    private var audioOnlySettings: [AVMediaType: [String: any Sendable]] {
+        [.audio: StreamRecorder.defaultSettings[.audio]!]
     }
 }
