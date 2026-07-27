@@ -2,6 +2,7 @@ import Accelerate
 import AVFoundation
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import QuartzCore
 
 final class ScreenRendererByGPU: ScreenRenderer {
     var bounds: CGRect = .init(origin: .zero, size: Screen.size)
@@ -81,7 +82,16 @@ final class ScreenRendererByGPU: ScreenRenderer {
         guard let pixelBuffer else {
             return
         }
-        context.render(canvas, to: pixelBuffer, bounds: canvas.extent, colorSpace: dynamicRangeMode.colorSpace)
-        dynamicRangeMode.attach(pixelBuffer)
+        let diag = OffscreenDiagnostics.shared
+        if diag.isEnabled {
+            let begin = CACurrentMediaTime()
+            context.render(canvas, to: pixelBuffer, bounds: canvas.extent, colorSpace: dynamicRangeMode.colorSpace)
+            let end = CACurrentMediaTime()
+            dynamicRangeMode.attach(pixelBuffer)
+            diag.recordGPURender(beginTime: begin, endTime: end)
+        } else {
+            context.render(canvas, to: pixelBuffer, bounds: canvas.extent, colorSpace: dynamicRangeMode.colorSpace)
+            dynamicRangeMode.attach(pixelBuffer)
+        }
     }
 }

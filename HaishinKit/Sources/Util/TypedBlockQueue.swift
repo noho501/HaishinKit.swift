@@ -20,6 +20,10 @@ final class TypedBlockQueue<T: AnyObject> {
         queue.duration
     }
 
+    @inlinable @inline(__always) var count: CMItemCount {
+        CMBufferQueueGetBufferCount(queue)
+    }
+
     init(capacity: CMItemCount, handlers: CMBufferQueue.Handlers) throws {
         self.capacity = capacity
         self.queue = try CMBufferQueue(capacity: capacity, handlers: handlers)
@@ -50,12 +54,38 @@ final class TypedBlockQueue<T: AnyObject> {
 extension TypedBlockQueue where T == CMSampleBuffer {
     func dequeue(_ presentationTimeStamp: CMTime) -> CMSampleBuffer? {
         var result: CMSampleBuffer?
+        let diag = OffscreenDiagnostics.shared
+        let diagEnabled = diag.isEnabled
+        let renderPTS = diagEnabled ? presentationTimeStamp.seconds : 0
+        let headPTSBefore: Double? = diagEnabled ? head?.presentationTimeStamp.seconds : nil
+        var skippedCount = 0
+
+        defer {
+            if diagEnabled {
+                let queueCountAfter = Int(count)
+                diag.recordDequeueComplete(
+                    renderPTS: renderPTS,
+                    headPTSBefore: headPTSBefore,
+                    skippedCount: skippedCount,
+                    returnedPTS: result?.presentationTimeStamp.seconds,
+                    queueCountAfter: queueCountAfter
+                )
+            }
+        }
+
         while !queue.isEmpty {
             guard let head else {
                 break
             }
             if head.presentationTimeStamp <= presentationTimeStamp {
+                if result != nil {
+                    // A previously dequeued frame is being discarded in favour of a later one.
+                    skippedCount += 1
+                }
                 result = dequeue()
+                if diagEnabled, let result {
+                    diag.logQueueDequeuedFrame(pts: result.presentationTimeStamp.seconds)
+                }
             } else {
                 return result
             }

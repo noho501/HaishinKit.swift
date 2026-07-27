@@ -1,4 +1,5 @@
 @preconcurrency import AVFoundation
+import QuartzCore
 
 #if canImport(UIKit)
 import UIKit
@@ -383,12 +384,31 @@ public final actor MediaMixer {
                 displayLink.preferredFramesPerSecond = await Int(frameRate)
                 displayLink.startRunning()
                 for await updateFrame in displayLink.updateFrames {
-                    guard let buffer = screen.makeSampleBuffer(updateFrame) else {
+                    let loopStart = CACurrentMediaTime()
+                    let callbackDuration = loopStart - updateFrame.timestamp
+
+                    let makeSampleBufferStart = CACurrentMediaTime()
+                    let buffer = screen.makeSampleBuffer(updateFrame)
+                    let makeSampleBufferDuration = CACurrentMediaTime() - makeSampleBufferStart
+
+                    guard let buffer else {
+                        OffscreenDiagnostics.shared.recordDroppedRenderFrame()
                         continue
                     }
+
+                    let outputStart = CACurrentMediaTime()
                     for output in await self.outputs where await output.videoTrackId == UInt8.max {
                         output.mixer(self, didOutput: buffer)
                     }
+                    let outputDuration = CACurrentMediaTime() - outputStart
+
+                    let totalDuration = CACurrentMediaTime() - loopStart
+                    OffscreenDiagnostics.shared.recordRenderLoop(
+                        displayLinkCallbackDuration: callbackDuration,
+                        makeSampleBufferDuration: makeSampleBufferDuration,
+                        outputMixerDuration: outputDuration,
+                        totalDuration: totalDuration
+                    )
                 }
             }
         }

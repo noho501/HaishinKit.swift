@@ -97,6 +97,15 @@ public final class VideoScreenObject: ScreenObject, ChromaKeyProcessable {
             return nil
         }
         frameTracker.update(sampleBuffer.presentationTimeStamp)
+        let diag = OffscreenDiagnostics.shared
+        if diag.isEnabled {
+            diag.recordMakeImage(
+                rendererPTS: renderer.presentationTimeStamp.seconds,
+                convertedPTS: presentationTimeStamp.seconds,
+                sampleBufferPTS: sampleBuffer.presentationTimeStamp.seconds,
+                frameRate: frameTracker.frameRate
+            )
+        }
         // Resizing before applying the filter for performance optimization.
         var image = CIImage(cvPixelBuffer: pixelBuffer, options: renderer.imageOptions).transformed(by: videoGravity.scale(
             bounds.size,
@@ -137,7 +146,27 @@ public final class VideoScreenObject: ScreenObject, ChromaKeyProcessable {
     }
 
     func enqueue(_ sampleBuffer: CMSampleBuffer) {
-        try? queue?.enqueue(sampleBuffer)
+        let diag = OffscreenDiagnostics.shared
+        if diag.isEnabled {
+            let countBefore = Int(queue?.count ?? 0)
+            let wasAlreadyFull = countBefore >= Self.capacity
+            var didFail = false
+            do {
+                try queue?.enqueue(sampleBuffer)
+            } catch {
+                didFail = true
+            }
+            let countAfter = Int(queue?.count ?? 0)
+            diag.recordCameraEnqueue(
+                pts: sampleBuffer.presentationTimeStamp.seconds,
+                queueCountBefore: countBefore,
+                queueCountAfter: countAfter,
+                didFail: didFail,
+                wasAlreadyFull: wasAlreadyFull
+            )
+        } else {
+            try? queue?.enqueue(sampleBuffer)
+        }
         invalidateLayout()
     }
 

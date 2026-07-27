@@ -124,6 +124,10 @@ final class DisplayLinkChoreographer: NSObject {
 
     @objc
     private func update(displayLink: DisplayLink) {
+        OffscreenDiagnostics.shared.recordDisplayLinkUpdate(
+            timestamp: displayLink.timestamp,
+            targetTimestamp: displayLink.targetTimestamp
+        )
         continutation?.yield(.init(timestamp: displayLink.timestamp, targetTimestamp: displayLink.targetTimestamp))
     }
 }
