@@ -30,16 +30,12 @@ let package = Package(
         .library(name: "RTCHaishinKit", targets: ["RTCHaishinKit"])
     ],
     dependencies: [
+        .package(url: "https://github.com/HaishinKit/libdatachannel-xcframework.git", from: "0.24.6"),
         .package(url: "https://github.com/HaishinKit/libsrt-xcframework.git", from: "1.5.7"),
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.5"),
         .package(url: "https://github.com/shogo4405/Logboard.git", "2.6.0"..<"2.7.0")
     ],
     targets: [
-        .binaryTarget(
-            name: "libdatachannel",
-            url: "https://github.com/HaishinKit/libdatachannel-xcframework/releases/download/v0.24.0/libdatachannel.xcframework.zip",
-            checksum: "52163eed2c9d652d913b20d1fd5a1925c5982b1dcdf335fd916c72ffa385bb26"
-        ),
         .target(
             name: "HaishinKit",
             dependencies: ["Logboard"],
@@ -66,7 +62,7 @@ let package = Package(
         ),
         .target(
             name: "RTCHaishinKit",
-            dependencies: ["libdatachannel", "HaishinKit"],
+            dependencies: [.product(name: "libdatachannel", package: "libdatachannel-xcframework"), "HaishinKit"],
             path: "RTCHaishinKit/Sources",
             swiftSettings: swiftSettings
         ),
