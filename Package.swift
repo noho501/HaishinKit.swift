@@ -20,7 +20,7 @@ let package = Package(
         .tvOS(.v15),
         .macCatalyst(.v15),
         .macOS(.v12),
-        .visionOS(.v1)
+        .visionOS("1.3")
     ],
     products: [
         .library(name: "HaishinKit", targets: ["HaishinKit"]),
@@ -30,15 +30,11 @@ let package = Package(
         .library(name: "RTCHaishinKit", targets: ["RTCHaishinKit"])
     ],
     dependencies: [
+        .package(url: "https://github.com/HaishinKit/libsrt-xcframework.git", from: "1.5.7"),
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.5"),
         .package(url: "https://github.com/shogo4405/Logboard.git", "2.6.0"..<"2.7.0")
     ],
     targets: [
-        .binaryTarget(
-            name: "libsrt",
-            url: "https://github.com/HaishinKit/libsrt-xcframework/releases/download/v1.5.4/libsrt.xcframework.zip",
-            checksum: "76879e2802e45ce043f52871a0a6764d57f833bdb729f2ba6663f4e31d658c4a"
-        ),
         .binaryTarget(
             name: "libdatachannel",
             url: "https://github.com/HaishinKit/libdatachannel-xcframework/releases/download/v0.24.0/libdatachannel.xcframework.zip",
@@ -58,7 +54,7 @@ let package = Package(
         ),
         .target(
             name: "SRTHaishinKit",
-            dependencies: ["libsrt", "HaishinKit"],
+            dependencies: [.product(name: "libsrt", package: "libsrt-xcframework"), "HaishinKit"],
             path: "SRTHaishinKit/Sources",
             swiftSettings: swiftSettings
         ),
