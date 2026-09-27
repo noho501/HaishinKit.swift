@@ -38,7 +38,7 @@ Sponsor: [$50 per month](https://github.com/sponsors/shogo4405): Technical suppo
 |:-:|:-:|:-:|:-:|:-:|:-:|
 |15.0+|15.0+|15.0+|12.0+|1.3+|-|
 
-- SRTHaishinKit is not avaliable for Mac Catalyst. 
+- The libsrt 1.5.7 dependency includes arm64 Mac Catalyst support. HaishinKit currently has a separate Mac Catalyst build issue in `TextScreenObject.swift` (`NSColor` is unavailable).
 
 ## 📖 Getting Started
 
