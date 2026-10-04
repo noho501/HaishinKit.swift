@@ -436,8 +436,9 @@ public actor RTMPConnection: HaishinKit.NetworkConnection {
             logger.trace("<<", message)
         }
         let iterator = outputBuffer.putMessage(type, chunkStreamId: chunkStreamId.rawValue, message: message)
+        let data = Array(iterator)
         Task {
-            await socket?.send(iterator)
+            await socket?.send(data)
         }
         return message.payload.count
     }

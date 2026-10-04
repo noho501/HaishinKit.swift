@@ -91,11 +91,11 @@ final actor RTMPSocket {
         outputs?.yield(data)
     }
 
-    func send(_ iterator: AnyIterator<Data>) {
+    func send(_ chunks: [Data]) {
         guard connected else {
             return
         }
-        for data in iterator {
+        for data in chunks {
             queueBytesOut += data.count
             outputs?.yield(data)
         }
