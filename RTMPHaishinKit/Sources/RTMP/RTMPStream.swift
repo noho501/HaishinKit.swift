@@ -224,8 +224,6 @@ public actor RTMPStream {
     private var expectedResponse: Code?
     package var bitRateStrategy: (any StreamBitRateStrategy)?
     private var statusContinuation: AsyncStream<RTMPStatus>.Continuation?
-    nonisolated(unsafe) private var mixerAudioContinuation: AsyncStream<(AVAudioPCMBuffer, AVAudioTime)>.Continuation?
-    nonisolated(unsafe) private var mixerVideoContinuation: AsyncStream<CMSampleBuffer>.Continuation?
     private(set) var id: UInt32 = RTMPStream.defaultID
     package lazy var incoming = IncomingStream(self)
     package lazy var outgoing = OutgoingStream()
@@ -277,7 +275,6 @@ public actor RTMPStream {
         self.fcPublishName = fcPublishName
         self.requestTimeout = connection.requestTimeout
         Task {
-            await self.startMixerInputConsumers()
             await connection.addStream(self)
             if await connection.connected {
                 await createStream()
@@ -286,8 +283,6 @@ public actor RTMPStream {
     }
 
     deinit {
-        mixerAudioContinuation?.finish()
-        mixerVideoContinuation?.finish()
         outputs.removeAll()
     }
 
@@ -393,8 +388,6 @@ public actor RTMPStream {
             readyState = .publishing
             try? send("@setDataFrame", arguments: "onMetaData", metadata)
             outgoing.startRunning()
-            stopMixerInputConsumers()
-            startMixerInputConsumers()
             Task {
                 for await audio in outgoing.audioOutputStream {
                     append(audio.0, when: audio.1)
@@ -422,8 +415,6 @@ public actor RTMPStream {
         guard readyState == .playing || readyState == .publishing else {
             throw Error.invalidState
         }
-        stopMixerInputConsumers()
-        startMixerInputConsumers()
         outgoing.stopRunning()
         return try await withCheckedThrowingContinuation { continutation in
             self.continuation = continutation
@@ -692,30 +683,6 @@ public actor RTMPStream {
         }
     }
 
-    private func startMixerInputConsumers() {
-        let (audioStream, audioContinuation) = AsyncStream.makeStream(of: (AVAudioPCMBuffer, AVAudioTime).self)
-        let (videoStream, videoContinuation) = AsyncStream.makeStream(of: CMSampleBuffer.self)
-        mixerAudioContinuation = audioContinuation
-        mixerVideoContinuation = videoContinuation
-        Task {
-            for await (buffer, when) in audioStream {
-                append(buffer, when: when)
-            }
-        }
-        Task {
-            for await sampleBuffer in videoStream {
-                append(sampleBuffer)
-            }
-        }
-    }
-
-    private func stopMixerInputConsumers() {
-        mixerAudioContinuation?.finish()
-        mixerAudioContinuation = nil
-        mixerVideoContinuation?.finish()
-        mixerVideoContinuation = nil
-    }
-
     /// Creates flv metadata for a stream.
     private func makeMetadata() -> AMFArray {
         // https://github.com/shogo4405/HaishinKit.swift/issues/1410
@@ -839,10 +806,10 @@ extension RTMPStream: MediaMixerOutput {
     }
 
     nonisolated public func mixer(_ mixer: MediaMixer, didOutput sampleBuffer: CMSampleBuffer) {
-        mixerVideoContinuation?.yield(sampleBuffer)
+        Task { await append(sampleBuffer) }
     }
 
     nonisolated public func mixer(_ mixer: MediaMixer, didOutput buffer: AVAudioPCMBuffer, when: AVAudioTime) {
-        mixerAudioContinuation?.yield((buffer, when))
+        Task { await append(buffer, when: when) }
     }
 }

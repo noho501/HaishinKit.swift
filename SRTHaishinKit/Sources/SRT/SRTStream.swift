@@ -24,8 +24,6 @@ public actor SRTStream {
     package lazy var incoming = IncomingStream(self)
     package lazy var outgoing = OutgoingStream()
     private weak var connection: SRTConnection?
-    nonisolated(unsafe) private var mixerAudioContinuation: AsyncStream<(AVAudioPCMBuffer, AVAudioTime)>.Continuation?
-    nonisolated(unsafe) private var mixerVideoContinuation: AsyncStream<CMSampleBuffer>.Continuation?
 
     /// The error domain codes.
     public enum Error: Swift.Error {
@@ -36,15 +34,10 @@ public actor SRTStream {
     /// Creates a new stream object.
     public init(connection: SRTConnection) {
         self.connection = connection
-        Task {
-            await self.startMixerInputConsumers()
-            await connection.addStream(self)
-        }
+        Task { await connection.addStream(self) }
     }
 
     deinit {
-        mixerAudioContinuation?.finish()
-        mixerVideoContinuation?.finish()
         outputs.removeAll()
     }
 
@@ -65,8 +58,6 @@ public actor SRTStream {
             return
         }
         readyState = .publishing
-        stopMixerInputConsumers()
-        startMixerInputConsumers()
         outgoing.startRunning()
         if outgoing.videoInputFormat != nil {
             writer.expectedMedias.insert(.video)
@@ -130,8 +121,6 @@ public actor SRTStream {
         guard readyState != .idle else {
             return
         }
-        stopMixerInputConsumers()
-        startMixerInputConsumers()
         writer.clear()
         reader.clear()
         outgoing.stopRunning()
@@ -149,30 +138,6 @@ public actor SRTStream {
 
     func doInput(_ data: Data) {
         _ = reader.read(data)
-    }
-
-    private func startMixerInputConsumers() {
-        let (audioStream, audioContinuation) = AsyncStream.makeStream(of: (AVAudioPCMBuffer, AVAudioTime).self)
-        let (videoStream, videoContinuation) = AsyncStream.makeStream(of: CMSampleBuffer.self)
-        mixerAudioContinuation = audioContinuation
-        mixerVideoContinuation = videoContinuation
-        Task {
-            for await (buffer, when) in audioStream {
-                append(buffer, when: when)
-            }
-        }
-        Task {
-            for await sampleBuffer in videoStream {
-                append(sampleBuffer)
-            }
-        }
-    }
-
-    private func stopMixerInputConsumers() {
-        mixerAudioContinuation?.finish()
-        mixerAudioContinuation = nil
-        mixerVideoContinuation?.finish()
-        mixerVideoContinuation = nil
     }
 }
 
@@ -238,10 +203,10 @@ extension SRTStream: MediaMixerOutput {
     }
 
     nonisolated public func mixer(_ mixer: MediaMixer, didOutput sampleBuffer: CMSampleBuffer) {
-        mixerVideoContinuation?.yield(sampleBuffer)
+        Task { await append(sampleBuffer) }
     }
 
     nonisolated public func mixer(_ mixer: MediaMixer, didOutput buffer: AVAudioPCMBuffer, when: AVAudioTime) {
-        mixerAudioContinuation?.yield((buffer, when))
+        Task { await append(buffer, when: when) }
     }
 }
